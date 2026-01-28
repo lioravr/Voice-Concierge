@@ -1,0 +1,86 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database with pgvector extension
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: voice-concierge-db
+    environment:
+      POSTGRES_DB: ${DB_NAME:-voice_concierge}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - voice-concierge-network
+
+  # .NET Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: voice-concierge-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: Host=postgres;Port=5432;Database=${DB_NAME:-voice_concierge};Username=${DB_USER:-postgres};Password=${DB_PASSWORD:-postgres}
+      OpenAI__ApiKey: ${OPENAI_API_KEY}
+      OpenAI__EmbeddingModel: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OpenAI__ChatModel: ${OPENAI_CHAT_MODEL:-gpt-3.5-turbo}
+    ports:
+      - "5000:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - voice-concierge-network
+
+  # Python Voice Agent
+  voice-agent:
+    build:
+      context: ./voice-agent
+      dockerfile: Dockerfile
+    container_name: voice-concierge-agent
+    environment:
+      LIVEKIT_URL: ${LIVEKIT_URL}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      BACKEND_API_URL: http://backend:8080
+      TTS_PROVIDER: ${TTS_PROVIDER:-openai}
+      STT_PROVIDER: ${STT_PROVIDER:-openai}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - backend
+    networks:
+      - voice-concierge-network
+
+  # React Admin Panel
+  admin-panel:
+    build:
+      context: ./admin-panel
+      dockerfile: Dockerfile
+    container_name: voice-concierge-admin
+    ports:
+      - "3000:80"
+    environment:
+      VITE_API_URL: http://localhost:5000/api
+    depends_on:
+      - backend
+    networks:
+      - voice-concierge-network
+
+volumes:
+  postgres-data:
+    driver: local
+
+networks:
+  voice-concierge-network:
+    driver: bridge
