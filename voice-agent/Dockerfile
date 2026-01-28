@@ -26,5 +26,5 @@ EXPOSE 8080
 # Set Python to run in unbuffered mode
 ENV PYTHONUNBUFFERED=1
 
-# Run the agent
-CMD ["python", "-m", "agent.main"]
+# Run the agent in production mode
+CMD ["python", "-m", "agent.main", "start"]
