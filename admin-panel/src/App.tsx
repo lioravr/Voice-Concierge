@@ -1,22 +1,26 @@
-import { useState } from 'react'
+/**
+ * Main App Component with Router
+ */
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import MainLayout from './layouts/MainLayout';
+import FAQsPage from './pages/FAQsPage';
+import UnansweredQuestionsPage from './pages/UnansweredQuestionsPage';
+import VoiceConfigurationPage from './pages/VoiceConfigurationPage';
+import PlaygroundPage from './pages/PlaygroundPage';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <h1 className="text-3xl font-bold mb-4">Voice Concierge Admin</h1>
-        <p className="text-gray-600 mb-4">Admin panel coming soon...</p>
-        <button
-          onClick={() => setCount((count) => count + 1)}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-        >
-          count is {count}
-        </button>
-      </div>
-    </div>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<MainLayout />}>
+          <Route index element={<FAQsPage />} />
+          <Route path="unanswered" element={<UnansweredQuestionsPage />} />
+          <Route path="voices" element={<VoiceConfigurationPage />} />
+          <Route path="playground" element={<PlaygroundPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
