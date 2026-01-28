@@ -1,78 +1,86 @@
 # Active Context: Voice Concierge
 
 ## Current Status
-**Project Phase**: Initial Setup - Memory Bank Creation
+**Project Phase**: Phase 2 - Database Design & Setup
 **Date**: January 28, 2026
-**Status**: Planning Complete, Ready to Begin Implementation
+**Status**: PR #1 Merged ✅ | PR #2 Awaiting Review 🔄
 
 ## What We Just Did
-1. ✅ Read and analyzed complete PRD document
-2. ✅ Created comprehensive implementation plan
-3. ✅ Established memory bank structure
-4. ✅ Documented architecture and technical decisions
+1. ✅ Created and merged PR #1 (Domain Layer)
+   - Added 3 domain entities with Pgvector support
+   - Added 3 repository interfaces
+   - Core project successfully compiles
+2. ✅ Created and pushed PR #2 (Infrastructure Layer)
+   - Implemented ApplicationDbContext with pgvector extension
+   - Created 3 entity configurations with indexes
+   - Implemented all 3 repositories with semantic search
+   - Updated Program.cs with EF Core, DI, CORS, health checks
+   - Created initial EF Core migration (InitialCreate)
+   - Added all required NuGet packages
+   - Solution builds successfully (0 errors)
 
 ## Current Focus
-**Creating foundation for implementation:**
-- Setting up project structure and repository layout
-- Defining clear architectural boundaries and layers
-- Establishing development workflow and patterns
+**Database Layer Complete - Awaiting PR #2 Merge:**
+- Infrastructure layer with EF Core fully implemented
+- PostgreSQL schema with pgvector configured
+- Repository pattern with semantic search operational
+- Ready to proceed with service layer and REST API controllers
 
 ## Next Immediate Steps
 
-### Step 1: Project Structure Setup
-Create the complete directory structure for all components:
-- Backend API (.NET solution with 3 projects)
-- Voice Agent (Python application)
-- Admin Panel (React application)
-- Docker configuration files
-- Documentation files
+### After PR #2 Merges: Phase 3 - Service Layer & API Controllers
 
-### Step 2: Docker Compose Configuration
-Set up orchestration for entire system:
-- PostgreSQL with pgvector
-- .NET backend API
-- Python voice agent
-- React admin panel
-- Network configuration
-- Volume management
+**Step 1: Service Layer Development**
+- Create `IEmbeddingService` interface and OpenAI implementation
+- Create `ISemanticSearchService` with pgvector integration
+- Create `FAQService` with business logic (CRUD + search)
+- Create `UnansweredQuestionService` with conversion logic
+- Create `VoiceConfigurationService` with activation logic
 
-### Step 3: Environment Configuration
-Create configuration files:
-- `.env.example` with all required variables
-- `.gitignore` to protect secrets
-- Docker environment variable mapping
-- README.md with setup instructions
+**Step 2: REST API Controllers**
+- `FAQController` - CRUD operations + semantic search endpoint
+- `UnansweredQuestionsController` - Queue management + convert to FAQ
+- `VoiceConfigurationsController` - List, get active, set active
 
-### Step 4: Database Foundation
-Initialize database schema:
-- Create EF Core DbContext
-- Define domain entities
-- Create initial migration with pgvector
-- Design seed data structure
+**Step 3: Seed Data Migration**
+- Create second migration with all Meridian Casino information
+- Generate embeddings for seed FAQs using OpenAI
+- Seed 4 voice personality configurations
+- Test database with full dataset
+
+**Step 4: Integration Testing**
+- Test semantic search with varied question phrasings
+- Test FAQ CRUD operations
+- Test unanswered question workflow
+- Validate voice configuration activation
 
 ## Recent Decisions
 
-### Technology Choices
-✅ **Backend**: .NET Core 8.0 (chosen by user)
-✅ **Voice Agent**: Python 3.11+ with LiveKit
-✅ **Database**: PostgreSQL 16 with pgvector
-✅ **LLM**: OpenAI (GPT-4 or GPT-3.5)
-✅ **Admin Panel**: React 18 with TypeScript
+### Technology Choices (Confirmed)
+✅ **Backend**: .NET Core 8.0 (ASP.NET Core Web API)
+✅ **Voice Agent**: Python 3.11+ with LiveKit Agents SDK
+✅ **Database**: PostgreSQL 16 with pgvector 0.5+
+✅ **LLM**: OpenAI (GPT-4 or GPT-3.5-turbo)
+✅ **Embeddings**: OpenAI text-embedding-3-small (1536 dimensions)
+✅ **Admin Panel**: React 18 with TypeScript, Vite, TailwindCSS
 ✅ **Scope**: Full implementation (core + all bonus features)
 
-### Architecture Decisions
-✅ **Clean Architecture** for backend (.NET)
-✅ **Repository Pattern** for data access
-✅ **Service Layer** for business logic
-✅ **Semantic Search** with OpenAI embeddings + pgvector cosine similarity
-✅ **Event-Driven** voice agent with LiveKit
-✅ **Component-Based** React SPA for admin
+### Architecture Decisions (Implemented)
+✅ **Clean Architecture** for backend - 3 projects (API, Core, Infrastructure)
+✅ **Repository Pattern** - Interfaces in Core, implementations in Infrastructure
+✅ **Service Layer** for business logic - Next phase
+✅ **Semantic Search** with cosine distance - Implemented in FAQRepository
+✅ **Event-Driven** voice agent with LiveKit - Planned
+✅ **Component-Based** React SPA - Planned
 
-### Implementation Strategy
-✅ **Single Command Deployment**: docker-compose up
-✅ **Development First**: Build locally, containerize after
-✅ **Incremental Testing**: Test each component as built
-✅ **Documentation Alongside**: Write docs during development
+### Implementation Strategy (Active)
+✅ **PR-Based Workflow**: Small, focused pull requests
+  - PR #1: Domain Layer (Merged)
+  - PR #2: Infrastructure Layer (In Review)
+  - PR #3: Service Layer & Controllers (Next)
+✅ **Build Verification**: Every PR must compile successfully
+✅ **Incremental Testing**: Test each layer as built
+✅ **Memory Bank Updates**: After major milestones
 
 ## Active Questions & Considerations
 
@@ -112,7 +120,16 @@ Initialize database schema:
 - **Recommendation**: Custom for better admin panel integration
 
 ## Current Blockers
-**None** - Ready to begin implementation
+**None** - PR #2 awaiting user review and merge
+
+### Resolved Issues This Session
+1. ✅ Fixed repository implementations to match interface signatures
+   - Changed return types from `IEnumerable` to `List`
+   - Changed return types from `Task<T>` to `Task` where appropriate
+   - Fixed `SearchByEmbeddingAsync` to accept `float[]` and return tuples with distance
+2. ✅ Removed health check extension that wasn't compiling
+   - Simplified to basic health checks for now
+3. ✅ Successfully created EF Core migration with pgvector support
 
 ## Context for Next Session
 
@@ -170,11 +187,19 @@ As we build, continuously test:
 - Prefers **.NET** for backend
 - Chose **PostgreSQL** with pgvector
 - Selected **OpenAI** as LLM provider
-- Wants clear **PRs and layers** across project
-- Values **memory bank** for context preservation
+- Wants clear **PRs and layers** across project - ✅ Implementing
+- Values **memory bank** for context preservation - ✅ Maintaining
+- Requested to **split Phase 2 into 2 PRs** - ✅ Completed
 
-### Current User Request
-"Let's start with clear PRs and layers across this project. First I want from you to create a memory bank to this solution."
+### Recent User Requests
+1. ✅ "Create a memory bank" - Completed
+2. ✅ "Create a PR of new files to main" - PR #1 created and merged
+3. ✅ "Move to next step" - Started Phase 2 (Database setup)
+4. ✅ "Validate compile of the solution" - Verified successful build
+5. ✅ "Separate to 2 PRs" - Split into PR #1 (Domain) and PR #2 (Infrastructure)
+6. ✅ "Fix compile errors in PR #1" - Fixed and pushed
+7. 🔄 "Continue to next step" - Ready for Phase 3 after PR #2 merge
+8. ✅ "Update memory bank before continue" - In progress now
 
-**Status**: ✅ Memory bank created
-**Next**: Await user confirmation to proceed with implementation
+**Current Status**: Updating memory bank with Phase 2 progress
+**Next**: Phase 3 - Service Layer & REST API Controllers
