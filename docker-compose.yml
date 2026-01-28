@@ -48,13 +48,22 @@ services:
       dockerfile: Dockerfile
     container_name: voice-concierge-agent
     environment:
+      # LiveKit Configuration
       LIVEKIT_URL: ${LIVEKIT_URL}
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      # OpenAI Configuration
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      BACKEND_API_URL: http://backend:8080
-      TTS_PROVIDER: ${TTS_PROVIDER:-openai}
-      STT_PROVIDER: ${STT_PROVIDER:-openai}
+      # Backend API
+      BACKEND_API_URL: ${BACKEND_API_URL:-http://backend:8080}
+      BACKEND_TIMEOUT: ${BACKEND_TIMEOUT:-10}
+      # Agent Behavior
+      AGENT_NAME: ${AGENT_NAME:-Meridian Voice Concierge}
+      DEFAULT_VOICE: ${DEFAULT_VOICE:-nova}
+      SPEECH_SPEED: ${SPEECH_SPEED:-1.0}
+      SEARCH_LIMIT: ${SEARCH_LIMIT:-3}
+      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.3}
+      GREETING_MESSAGE: ${GREETING_MESSAGE:-Welcome to The Meridian Casino & Resort! I'm your voice concierge. How may I assist you today?}
     ports:
       - "8080:8080"
     depends_on:

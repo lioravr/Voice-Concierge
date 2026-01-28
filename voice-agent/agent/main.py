@@ -2,27 +2,63 @@
 Voice Concierge Agent
 Main entry point for the LiveKit voice agent
 """
-import asyncio
-import os
+import structlog
 from dotenv import load_dotenv
+from livekit.agents import WorkerOptions, cli
+
+from .config import AgentConfig
+from .voice_agent import create_agent
 
 # Load environment variables
 load_dotenv()
 
-async def main():
+# Configure structured logging
+structlog.configure(
+    processors=[
+        structlog.contextvars.merge_contextvars,
+        structlog.processors.add_log_level,
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.dev.ConsoleRenderer()
+    ]
+)
+
+logger = structlog.get_logger()
+
+
+def main():
     """Main entry point for the voice agent"""
-    print("Voice Concierge Agent starting...")
-    print(f"LiveKit URL: {os.getenv('LIVEKIT_URL', 'Not set')}")
-    print(f"Backend API URL: {os.getenv('BACKEND_API_URL', 'Not set')}")
     
-    # TODO: Initialize LiveKit agent
-    # TODO: Set up conversation handlers
-    # TODO: Connect to backend API
+    # Load configuration
+    try:
+        config = AgentConfig.from_env()
+        config.validate()
+        
+        logger.info(
+            "agent_configuration_loaded",
+            agent_name=config.agent_name,
+            backend_url=config.backend_api_url,
+            livekit_url=config.livekit_url
+        )
     
-    print("Voice agent initialized (placeholder)")
+    except ValueError as e:
+        logger.error("configuration_error", error=str(e))
+        raise
     
-    # Keep running
-    await asyncio.Event().wait()
+    # Create agent entrypoint
+    agent_entrypoint = create_agent(config)
+    
+    # Start LiveKit worker
+    logger.info("starting_livekit_worker")
+    
+    cli.run_app(
+        WorkerOptions(
+            entrypoint_fnc=agent_entrypoint,
+            api_key=config.livekit_api_key,
+            api_secret=config.livekit_api_secret,
+            ws_url=config.livekit_url,
+        )
+    )
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

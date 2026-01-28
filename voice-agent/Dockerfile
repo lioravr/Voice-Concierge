@@ -25,4 +25,4 @@ EXPOSE 8080
 ENV PYTHONUNBUFFERED=1
 
 # Run the agent
-CMD ["python", "agent/main.py"]
+CMD ["python", "-m", "agent.main"]
