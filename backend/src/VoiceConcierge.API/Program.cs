@@ -3,6 +3,7 @@ using VoiceConcierge.Core.Domain.Interfaces;
 using VoiceConcierge.Core.Services;
 using VoiceConcierge.Infrastructure.Data;
 using VoiceConcierge.Infrastructure.Data.Repositories;
+using VoiceConcierge.Infrastructure.Data.Seed;
 using VoiceConcierge.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -35,6 +36,9 @@ builder.Services.AddScoped<IEmbeddingService, OpenAIEmbeddingService>();
 builder.Services.AddScoped<IFAQService, FAQService>();
 builder.Services.AddScoped<IUnansweredQuestionService, UnansweredQuestionService>();
 builder.Services.AddScoped<IVoiceConfigurationService, VoiceConfigurationService>();
+
+// Register database seeder
+builder.Services.AddScoped<DatabaseSeeder>();
 
 // Add health checks
 builder.Services.AddHealthChecks();
@@ -79,12 +83,30 @@ app.MapGet("/api/test/db-connection", async (ApplicationDbContext db) =>
     }
 });
 
-// Auto-apply migrations in development
+// Auto-apply migrations and seed data in development
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await db.Database.MigrateAsync();
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    
+    try
+    {
+        // Apply migrations
+        var db = services.GetRequiredService<ApplicationDbContext>();
+        logger.LogInformation("Applying database migrations...");
+        await db.Database.MigrateAsync();
+        logger.LogInformation("Database migrations applied successfully");
+        
+        // Seed data
+        var seeder = services.GetRequiredService<DatabaseSeeder>();
+        await seeder.SeedAsync();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred during database initialization");
+        throw;
+    }
 }
 
 app.MapControllers();
