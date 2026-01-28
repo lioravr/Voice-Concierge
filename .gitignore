@@ -1,4 +1,57 @@
+# Environment files
+.env
+.env.local
+.env.*.local
 
+# dotnet
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+*.userprefs
 
-#Ignore cursor AI rules
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Node.js / React
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dist/
+build/
+.DS_Store
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker
+*.log
+
+# Database
+*.db
+*.sqlite
+
+# Ignore cursor AI rules
 .cursor/rules/codacy.mdc
