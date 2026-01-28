@@ -1,14 +1,19 @@
 using Microsoft.EntityFrameworkCore;
 using VoiceConcierge.Core.Domain.Interfaces;
+using VoiceConcierge.Core.Services;
 using VoiceConcierge.Infrastructure.Data;
 using VoiceConcierge.Infrastructure.Data.Repositories;
+using VoiceConcierge.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new() { Title = "Voice Concierge API", Version = "v1" });
+});
 
 // Configure PostgreSQL with pgvector
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
@@ -24,6 +29,12 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IFAQRepository, FAQRepository>();
 builder.Services.AddScoped<IUnansweredQuestionRepository, UnansweredQuestionRepository>();
 builder.Services.AddScoped<IVoiceConfigurationRepository, VoiceConfigurationRepository>();
+
+// Register services
+builder.Services.AddScoped<IEmbeddingService, OpenAIEmbeddingService>();
+builder.Services.AddScoped<IFAQService, FAQService>();
+builder.Services.AddScoped<IUnansweredQuestionService, UnansweredQuestionService>();
+builder.Services.AddScoped<IVoiceConfigurationService, VoiceConfigurationService>();
 
 // Add health checks
 builder.Services.AddHealthChecks();
