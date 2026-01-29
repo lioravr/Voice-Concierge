@@ -6,9 +6,17 @@ import os
 import sys
 from livekit import api
 
-# Load from environment or use provided values
-LIVEKIT_API_KEY = os.getenv('LIVEKIT_API_KEY', 'APIZN5PCu5yFbMu')
-LIVEKIT_API_SECRET = os.getenv('LIVEKIT_API_SECRET', 'gdDXeWYlzDMBDFmrHQ2aO7OTWsSF0uM9tNzIAwEuUEY')
+# Load credentials from environment variables (REQUIRED)
+LIVEKIT_API_KEY = os.getenv('LIVEKIT_API_KEY')
+LIVEKIT_API_SECRET = os.getenv('LIVEKIT_API_SECRET')
+
+if not LIVEKIT_API_KEY or not LIVEKIT_API_SECRET:
+    print("❌ Error: LIVEKIT_API_KEY and LIVEKIT_API_SECRET must be set")
+    print("\nUsage:")
+    print("  export LIVEKIT_API_KEY=your-key")
+    print("  export LIVEKIT_API_SECRET=your-secret")
+    print("  python generate_token.py [room-name] [participant-name]")
+    sys.exit(1)
 
 def generate_token(room_name: str = "test-room", participant_name: str = "guest"):
     """Generate a LiveKit access token"""

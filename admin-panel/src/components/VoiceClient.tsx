@@ -33,11 +33,8 @@ export default function VoiceClient({ onConnectionChange }: VoiceClientProps) {
       setConnecting(true);
       setError(null);
       
-      console.log('Step 1: Getting LiveKit token...');
       setTranscript((prev) => [...prev, `[${new Date().toLocaleTimeString()}] Getting token...`]);
 
-      // Get LiveKit token from backend
-      // Use unique room name to trigger automatic agent dispatch
       const roomName = `voice-concierge-${Date.now()}`;
       const response = await axios.post(`${API_BASE_URL}/livekit/token`, {
         identity: `guest-${Date.now()}`,
@@ -45,44 +42,33 @@ export default function VoiceClient({ onConnectionChange }: VoiceClientProps) {
       });
 
       const { token, url } = response.data;
-      console.log('Step 2: Token received, connecting to:', url);
       setTranscript((prev) => [...prev, `[${new Date().toLocaleTimeString()}] Token received, connecting...`]);
 
-      // Connect to LiveKit room
       await room.connect(url, token);
-      console.log('Step 3: Connected to LiveKit room');
       
       setConnected(true);
       setConnecting(false);
       onConnectionChange?.(true);
 
-      // Add transcript entry
       setTranscript((prev) => [
         ...prev,
         `[${new Date().toLocaleTimeString()}] ✅ Connected! Enabling microphone...`,
       ]);
 
-      // Enable microphone
       await room.localParticipant.setMicrophoneEnabled(true);
-      console.log('Step 4: Microphone enabled');
       
       setTranscript((prev) => [
         ...prev,
         `[${new Date().toLocaleTimeString()}] 🎤 Microphone enabled - Start speaking!`,
       ]);
 
-      // Listen for agent responses
       room.on('trackSubscribed', (track, publication, participant) => {
-        console.log('Track subscribed:', track.kind, 'from', participant.identity);
-        
         if (track.kind === 'audio') {
-          // Create audio element and attach track
           const audioElement = track.attach();
           audioElement.autoplay = true;
           audioElement.playsInline = true;
           document.body.appendChild(audioElement);
           
-          console.log('Audio track attached and playing');
           setTranscript((prev) => [
             ...prev,
             `[${new Date().toLocaleTimeString()}] 🔊 Agent is speaking...`,
@@ -90,20 +76,16 @@ export default function VoiceClient({ onConnectionChange }: VoiceClientProps) {
         }
       });
 
-      // Listen for data messages (transcript from agent)
       room.on('dataReceived', (payload) => {
         const decoder = new TextDecoder();
         const message = decoder.decode(payload);
-        console.log('Data received:', message);
         setTranscript((prev) => [
           ...prev,
           `[${new Date().toLocaleTimeString()}] Agent: ${message}`,
         ]);
       });
       
-      // Listen for participant events
       room.on('participantConnected', (participant) => {
-        console.log('Participant joined:', participant.identity);
         setTranscript((prev) => [
           ...prev,
           `[${new Date().toLocaleTimeString()}] 👤 ${participant.identity} joined`,
@@ -111,7 +93,6 @@ export default function VoiceClient({ onConnectionChange }: VoiceClientProps) {
       });
       
     } catch (err: any) {
-      console.error('Failed to connect:', err);
       const errorMsg = err.response?.data?.error || err.message || 'Failed to connect to voice agent';
       setError(`❌ Error: ${errorMsg}`);
       setTranscript((prev) => [
