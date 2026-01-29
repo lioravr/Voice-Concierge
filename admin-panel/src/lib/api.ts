@@ -1,5 +1,5 @@
 /**
- * API client for Voice Concierge backend
+ * API client for Voice Concierge backend with JWT authentication
  */
 import axios, { AxiosError } from 'axios';
 import type {
@@ -17,12 +17,41 @@ import type {
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Create axios instance with default config
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Add request interceptor to include auth token
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle 401 errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('auth_token');
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/playground') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Error handling helper
 export const handleApiError = (error: unknown): string => {
@@ -130,4 +159,5 @@ export const healthApi = {
   },
 };
 
+export { api };
 export default api;

@@ -1,21 +1,22 @@
 /**
- * Voice Agent Playground Page
+ * Voice Agent Playground Page (Public)
  */
 import { useState } from 'react';
-import { Search, Mic } from 'lucide-react';
+import { Search, Mic, LogIn } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useFAQSearch } from '../hooks/useFAQs';
-import { useActiveVoice } from '../hooks/useVoiceConfigurations';
 import VoiceClient from '../components/VoiceClient';
+import VoiceSelector from '../components/VoiceSelector';
 
 export default function PlaygroundPage() {
   const [query, setQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedVoiceId, setSelectedVoiceId] = useState<number | null>(null);
   const { data: searchResults, isLoading: isSearching } = useFAQSearch({
     query: searchQuery,
     limit: 5,
     threshold: 0.3,
   });
-  const { data: activeVoice } = useActiveVoice();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,17 +24,41 @@ export default function PlaygroundPage() {
   };
 
   return (
-    <div>
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold text-gray-900">Voice Agent Playground</h2>
-        <p className="text-gray-600 mt-2">
-          Test the voice agent with real voice conversation or semantic search simulation.
+    <div className="min-h-screen bg-gray-50">
+      {/* Public Header */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-900">
+              🎰 Meridian Voice Concierge
+            </h1>
+            <Link
+              to="/login"
+              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+            >
+              <LogIn className="w-4 h-4 mr-2" />
+              Admin Login
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6">
+          <h2 className="text-3xl font-bold text-gray-900">Voice Agent Playground</h2>
+          <p className="text-gray-600 mt-2">
+            Test the voice agent with real voice conversation or semantic search simulation.
         </p>
+      </div>
+
+      {/* Voice Selector */}
+      <div className="mb-8">
+        <VoiceSelector onVoiceSelect={setSelectedVoiceId} />
       </div>
 
       {/* Voice Client Section */}
       <div className="mb-8">
-        <VoiceClient />
+        <VoiceClient selectedVoiceId={selectedVoiceId} />
       </div>
 
       {/* Divider */}
@@ -47,19 +72,6 @@ export default function PlaygroundPage() {
           </span>
         </div>
       </div>
-
-      {/* Active Voice Info */}
-      {activeVoice && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center">
-            <Mic className="w-5 h-5 text-blue-600 mr-2" />
-            <span className="text-sm text-blue-900">
-              Active Voice: <span className="font-semibold">{activeVoice.name}</span>
-              {activeVoice.description && ` - ${activeVoice.description}`}
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* Search Form */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
@@ -210,6 +222,7 @@ export default function PlaygroundPage() {
             <p>Guest hears the answer in real-time</p>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

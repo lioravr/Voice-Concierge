@@ -36,19 +36,54 @@ async def agent_entrypoint(ctx: RunContext):
         timeout=config.backend_timeout
     )
     
-    # Get active voice configuration
+    # Get voice configuration
     tts_voice = config.default_voice
-    try:
-        active_voice = await backend.get_active_voice()
-        if active_voice and active_voice.get("providerVoiceId"):
-            logger.info("active_voice_retrieved", 
-                       name=active_voice.get("name"),
-                       provider_voice_id=active_voice.get("providerVoiceId"))
-            tts_voice = active_voice.get("providerVoiceId")
-    except Exception as e:
-        logger.warning("failed_to_get_active_voice", error=str(e))
+    voice_preference_id = None
     
-    logger.info("using_voice", voice=tts_voice)
+    # Check if user has a voice preference in metadata
+    if ctx.room.remote_participants:
+        for participant in ctx.room.remote_participants.values():
+            if hasattr(participant, 'metadata') and participant.metadata:
+                try:
+                    import json
+                    metadata = json.loads(participant.metadata)
+                    voice_preference_id = metadata.get("voice_preference")
+                    if voice_preference_id:
+                        logger.info("voice_preference_found", 
+                                   participant=participant.identity,
+                                   voice_id=voice_preference_id)
+                        break
+                except Exception as e:
+                    logger.warning("failed_to_parse_metadata", error=str(e))
+    
+    # Get voice from backend based on preference or use active voice
+    try:
+        if voice_preference_id:
+            # Get specific voice by ID
+            voice_config = await backend.get_voice_by_id(voice_preference_id)
+            if voice_config and voice_config.get("providerVoiceId"):
+                logger.info("using_preferred_voice", 
+                           name=voice_config.get("name"),
+                           provider_voice_id=voice_config.get("providerVoiceId"))
+                tts_voice = voice_config.get("providerVoiceId")
+            else:
+                logger.warning("preferred_voice_not_found", voice_id=voice_preference_id)
+                # Fall back to active voice
+                active_voice = await backend.get_active_voice()
+                if active_voice and active_voice.get("providerVoiceId"):
+                    tts_voice = active_voice.get("providerVoiceId")
+        else:
+            # No preference, use active voice
+            active_voice = await backend.get_active_voice()
+            if active_voice and active_voice.get("providerVoiceId"):
+                logger.info("using_active_voice", 
+                           name=active_voice.get("name"),
+                           provider_voice_id=active_voice.get("providerVoiceId"))
+                tts_voice = active_voice.get("providerVoiceId")
+    except Exception as e:
+        logger.warning("failed_to_get_voice_config", error=str(e))
+    
+    logger.info("final_voice_selection", voice=tts_voice)
     
     # Load VAD model
     vad = silero.VAD.load()

@@ -1,9 +1,13 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using VoiceConcierge.Core.Domain.Interfaces;
 using VoiceConcierge.Core.Services;
 using VoiceConcierge.Infrastructure.Data;
 using VoiceConcierge.Infrastructure.Data.Repositories;
 using VoiceConcierge.Infrastructure.Data.Seed;
+using VoiceConcierge.Infrastructure.Repositories;
 using VoiceConcierge.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -30,12 +34,14 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IFAQRepository, FAQRepository>();
 builder.Services.AddScoped<IUnansweredQuestionRepository, UnansweredQuestionRepository>();
 builder.Services.AddScoped<IVoiceConfigurationRepository, VoiceConfigurationRepository>();
+builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 // Register services
 builder.Services.AddScoped<IEmbeddingService, OpenAIEmbeddingService>();
 builder.Services.AddScoped<IFAQService, FAQService>();
 builder.Services.AddScoped<IUnansweredQuestionService, UnansweredQuestionService>();
 builder.Services.AddScoped<IVoiceConfigurationService, VoiceConfigurationService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
 
 // Register database seeder
 builder.Services.AddScoped<DatabaseSeeder>();
@@ -45,6 +51,32 @@ builder.Services.AddHttpClient();
 
 // Add health checks
 builder.Services.AddHealthChecks();
+
+// Configure JWT Authentication
+var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "VoiceConcierge";
+var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "VoiceConciergeClient";
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtIssuer,
+        ValidAudience = jwtAudience,
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+    };
+});
+
+builder.Services.AddAuthorization();
 
 // Configure CORS
 builder.Services.AddCors(options =>
@@ -73,6 +105,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapHealthChecks("/health");
 
