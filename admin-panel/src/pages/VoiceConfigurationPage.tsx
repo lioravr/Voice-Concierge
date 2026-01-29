@@ -1,16 +1,58 @@
 /**
  * Voice Configuration Management Page
  */
+import { useState } from 'react';
 import { useVoiceConfigurations, useActiveVoice, useSetActiveVoice } from '../hooks/useVoiceConfigurations';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Volume2 } from 'lucide-react';
+import axios from 'axios';
+import { toast } from 'sonner';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
 
 export default function VoiceConfigurationPage() {
   const { data: voices, isLoading } = useVoiceConfigurations();
   const { data: activeVoice } = useActiveVoice();
   const setActiveVoice = useSetActiveVoice();
+  const [playingVoiceId, setPlayingVoiceId] = useState<number | null>(null);
 
   const handleActivate = async (voiceId: number) => {
     await setActiveVoice.mutateAsync(voiceId);
+  };
+
+  const handlePreview = async (voiceId: number) => {
+    try {
+      setPlayingVoiceId(voiceId);
+      toast.info('Generating voice preview...');
+
+      // Fetch audio preview from backend
+      const response = await axios.get(
+        `${API_BASE_URL}/voiceconfigurations/${voiceId}/preview`,
+        { responseType: 'blob' }
+      );
+
+      // Create audio blob and play
+      const audioBlob = new Blob([response.data], { type: 'audio/mpeg' });
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      audio.onended = () => {
+        setPlayingVoiceId(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setPlayingVoiceId(null);
+        URL.revokeObjectURL(audioUrl);
+        toast.error('Failed to play audio preview');
+      };
+
+      await audio.play();
+      toast.success('Playing voice preview');
+    } catch (error) {
+      console.error('Failed to preview voice:', error);
+      setPlayingVoiceId(null);
+      toast.error('Failed to generate voice preview');
+    }
   };
 
   if (isLoading) {
@@ -82,6 +124,17 @@ export default function VoiceConfigurationPage() {
               </p>
             </div>
 
+            {/* Preview Button */}
+            <button
+              onClick={() => handlePreview(voice.voiceId)}
+              disabled={playingVoiceId !== null}
+              className="w-full mb-3 px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center"
+            >
+              <Volume2 className={`w-4 h-4 mr-2 ${playingVoiceId === voice.voiceId ? 'animate-pulse' : ''}`} />
+              {playingVoiceId === voice.voiceId ? 'Playing Preview...' : 'Preview Voice'}
+            </button>
+
+            {/* Activate Button */}
             {!voice.isActive && (
               <button
                 onClick={() => handleActivate(voice.voiceId)}
@@ -109,13 +162,16 @@ export default function VoiceConfigurationPage() {
             • Each voice has a unique personality, accent, and tone
           </p>
           <p>
+            • Click "Preview Voice" to hear a sample of each voice before activating
+          </p>
+          <p>
             • The active voice is used for all guest interactions via the voice agent
           </p>
           <p>
             • Changes take effect immediately for new conversations
           </p>
           <p>
-            • You can test voices in the Playground before activating them
+            • You can also test voices in the Playground with full conversations
           </p>
         </div>
       </div>

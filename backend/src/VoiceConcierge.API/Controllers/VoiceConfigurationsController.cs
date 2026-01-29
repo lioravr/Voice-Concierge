@@ -75,4 +75,23 @@ public class VoiceConfigurationsController : ControllerBase
         
         return NoContent();
     }
+
+    /// <summary>
+    /// Generate a preview audio sample for a specific voice
+    /// </summary>
+    [HttpGet("{voiceId:int}/preview")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetVoicePreview(int voiceId)
+    {
+        _logger.LogInformation("Generating preview for voice {VoiceId}", voiceId);
+        
+        var audioData = await _voiceService.GeneratePreviewAsync(voiceId);
+        if (audioData == null)
+        {
+            return NotFound(new { message = "Voice configuration not found" });
+        }
+        
+        return File(audioData, "audio/mpeg", $"voice-preview-{voiceId}.mp3");
+    }
 }
