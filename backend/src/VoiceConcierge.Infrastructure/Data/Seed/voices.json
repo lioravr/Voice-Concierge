@@ -1,0 +1,34 @@
+[
+  {
+    "voiceId": 1,
+    "name": "James",
+    "description": "Mature, warm British accent - professional and refined. Perfect for luxury hospitality.",
+    "gender": "Male",
+    "accent": "British",
+    "providerVoiceId": "onyx"
+  },
+  {
+    "voiceId": 2,
+    "name": "Sofia",
+    "description": "Friendly, subtle European accent - welcoming and elegant. Sophisticated and approachable.",
+    "gender": "Female",
+    "accent": "European",
+    "providerVoiceId": "nova"
+  },
+  {
+    "voiceId": 3,
+    "name": "Marcus",
+    "description": "American, confident and energetic - modern and approachable. Warm and enthusiastic.",
+    "gender": "Male",
+    "accent": "American",
+    "providerVoiceId": "echo"
+  },
+  {
+    "voiceId": 4,
+    "name": "Elena",
+    "description": "American, calm and reassuring - sophisticated and clear. Polished and professional.",
+    "gender": "Female",
+    "accent": "American",
+    "providerVoiceId": "shimmer"
+  }
+]
