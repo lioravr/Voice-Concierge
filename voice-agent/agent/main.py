@@ -1,12 +1,11 @@
 """
-Voice Concierge Agent
-Main entry point for the LiveKit voice agent using v1.3.x API
+Voice Concierge Agent - Main Entry Point
 """
 import structlog
 from dotenv import load_dotenv
 from livekit.agents import cli
 
-from .voice_agent import server
+from .voice_agent import server  # Import the server instance
 
 # Load environment variables
 load_dotenv()
@@ -25,12 +24,9 @@ logger = structlog.get_logger()
 
 
 def main():
-    """Main entry point for the voice agent"""
+    """Main entry point"""
     logger.info("starting_voice_concierge_agent")
-    
-    # Run the LiveKit agent server
-    # The server is already configured in voice_agent.py
-    cli.run_app(server)
+    cli.run_app(server)  # Run the server
 
 
 if __name__ == "__main__":

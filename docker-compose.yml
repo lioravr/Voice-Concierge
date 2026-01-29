@@ -33,6 +33,9 @@ services:
       OpenAI__ApiKey: ${OPENAI_API_KEY}
       OpenAI__EmbeddingModel: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
       OpenAI__ChatModel: ${OPENAI_CHAT_MODEL:-gpt-3.5-turbo}
+      LiveKit__Url: ${LIVEKIT_URL}
+      LiveKit__ApiKey: ${LIVEKIT_API_KEY}
+      LiveKit__ApiSecret: ${LIVEKIT_API_SECRET}
     ports:
       - "5000:8080"
     depends_on:
