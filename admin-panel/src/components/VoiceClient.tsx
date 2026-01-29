@@ -11,9 +11,10 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 interface VoiceClientProps {
   onConnectionChange?: (connected: boolean) => void;
+  selectedVoiceId?: number | null;
 }
 
-export default function VoiceClient({ onConnectionChange }: VoiceClientProps) {
+export default function VoiceClient({ onConnectionChange, selectedVoiceId }: VoiceClientProps) {
   const [room] = useState(() => new Room());
   const [connected, setConnected] = useState(false);
   const [connecting, setConnecting] = useState(false);
@@ -36,10 +37,17 @@ export default function VoiceClient({ onConnectionChange }: VoiceClientProps) {
       setTranscript((prev) => [...prev, `[${new Date().toLocaleTimeString()}] Getting token...`]);
 
       const roomName = `voice-concierge-${Date.now()}`;
-      const response = await axios.post(`${API_BASE_URL}/livekit/token`, {
+      const requestBody: any = {
         identity: `guest-${Date.now()}`,
         roomName: roomName,
-      });
+      };
+      
+      // Include voice preference if selected
+      if (selectedVoiceId) {
+        requestBody.voicePreference = selectedVoiceId;
+      }
+      
+      const response = await axios.post(`${API_BASE_URL}/livekit/token`, requestBody);
 
       const { token, url } = response.data;
       setTranscript((prev) => [...prev, `[${new Date().toLocaleTimeString()}] Token received, connecting...`]);

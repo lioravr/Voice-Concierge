@@ -5,18 +5,18 @@ import { useState } from 'react';
 import { Search, Mic, LogIn } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useFAQSearch } from '../hooks/useFAQs';
-import { useActiveVoice } from '../hooks/useVoiceConfigurations';
 import VoiceClient from '../components/VoiceClient';
+import VoiceSelector from '../components/VoiceSelector';
 
 export default function PlaygroundPage() {
   const [query, setQuery] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedVoiceId, setSelectedVoiceId] = useState<number | null>(null);
   const { data: searchResults, isLoading: isSearching } = useFAQSearch({
     query: searchQuery,
     limit: 5,
     threshold: 0.3,
   });
-  const { data: activeVoice } = useActiveVoice();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,9 +51,14 @@ export default function PlaygroundPage() {
         </p>
       </div>
 
+      {/* Voice Selector */}
+      <div className="mb-8">
+        <VoiceSelector onVoiceSelect={setSelectedVoiceId} />
+      </div>
+
       {/* Voice Client Section */}
       <div className="mb-8">
-        <VoiceClient />
+        <VoiceClient selectedVoiceId={selectedVoiceId} />
       </div>
 
       {/* Divider */}
@@ -67,19 +72,6 @@ export default function PlaygroundPage() {
           </span>
         </div>
       </div>
-
-      {/* Active Voice Info */}
-      {activeVoice && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center">
-            <Mic className="w-5 h-5 text-blue-600 mr-2" />
-            <span className="text-sm text-blue-900">
-              Active Voice: <span className="font-semibold">{activeVoice.name}</span>
-              {activeVoice.description && ` - ${activeVoice.description}`}
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* Search Form */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">

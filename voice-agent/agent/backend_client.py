@@ -144,6 +144,49 @@ class BackendClient:
             )
             return None
     
+    async def get_voice_by_id(self, voice_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get a specific voice configuration by ID
+        
+        Args:
+            voice_id: Voice ID (1-4)
+        
+        Returns:
+            Voice configuration dict or None
+        """
+        try:
+            response = await self.client.get(f"/api/voiceconfigurations/{voice_id}")
+            response.raise_for_status()
+            voice = response.json()
+            
+            logger.info(
+                "voice_by_id_retrieved",
+                voice_name=voice.get("name"),
+                voice_id=voice.get("voiceId")
+            )
+            
+            return voice
+        
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                logger.warning("voice_not_found", voice_id=voice_id)
+            else:
+                logger.error(
+                    "get_voice_by_id_error",
+                    voice_id=voice_id,
+                    status_code=e.response.status_code,
+                    error=str(e)
+                )
+            return None
+        
+        except Exception as e:
+            logger.error(
+                "get_voice_by_id_error",
+                voice_id=voice_id,
+                error=str(e)
+            )
+            return None
+    
     async def health_check(self) -> bool:
         """
         Check if backend API is healthy
