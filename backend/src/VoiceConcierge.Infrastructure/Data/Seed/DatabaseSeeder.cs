@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Pgvector;
@@ -28,10 +30,13 @@ public class DatabaseSeeder
 
         try
         {
-            // Check if data already exists
+            // Always seed users (if they don't exist)
+            await SeedUsersAsync();
+
+            // Check if other data already exists
             if (await _context.FAQs.AnyAsync() || await _context.VoiceConfigurations.AnyAsync())
             {
-                _logger.LogInformation("Database already contains data. Skipping seeding.");
+                _logger.LogInformation("Database already contains FAQ/Voice data. Skipping seeding.");
                 return;
             }
 
@@ -45,6 +50,49 @@ public class DatabaseSeeder
             _logger.LogError(ex, "Error occurred while seeding database");
             throw;
         }
+    }
+
+    private async Task SeedUsersAsync()
+    {
+        if (await _context.Users.AnyAsync())
+        {
+            _logger.LogInformation("Users already exist. Skipping user seeding.");
+            return;
+        }
+
+        _logger.LogInformation("Seeding default users...");
+
+        var users = new List<User>
+        {
+            new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "admin",
+                PasswordHash = HashPassword("admin123"),
+                Role = UserRoles.Admin,
+                CreatedAt = DateTime.UtcNow
+            },
+            new User
+            {
+                Id = Guid.NewGuid(),
+                Username = "guest",
+                PasswordHash = HashPassword("guest123"),
+                Role = UserRoles.Guest,
+                CreatedAt = DateTime.UtcNow
+            }
+        };
+
+        await _context.Users.AddRangeAsync(users);
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Successfully seeded {Count} users", users.Count);
+    }
+
+    private static string HashPassword(string password)
+    {
+        using var sha256 = SHA256.Create();
+        var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
+        return Convert.ToBase64String(hashedBytes);
     }
 
     private async Task SeedVoiceConfigurationsAsync()

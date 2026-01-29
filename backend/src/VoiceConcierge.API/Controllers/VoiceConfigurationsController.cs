@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VoiceConcierge.Core.Domain.Entities;
 using VoiceConcierge.Core.DTOs;
 using VoiceConcierge.Core.Services;
 
@@ -20,9 +22,10 @@ public class VoiceConfigurationsController : ControllerBase
     }
 
     /// <summary>
-    /// Get all voice configurations
+    /// Get all voice configurations (Public - for voice agent)
     /// </summary>
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<List<VoiceConfigurationDto>>> GetAll()
     {
@@ -31,9 +34,10 @@ public class VoiceConfigurationsController : ControllerBase
     }
 
     /// <summary>
-    /// Get the currently active voice configuration
+    /// Get the currently active voice configuration (Public - for voice agent)
     /// </summary>
     [HttpGet("active")]
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<VoiceConfigurationDto>> GetActive()
@@ -47,9 +51,10 @@ public class VoiceConfigurationsController : ControllerBase
     }
 
     /// <summary>
-    /// Generate a preview audio sample for a specific voice
+    /// Generate a preview audio sample for a specific voice (Public - for admins to preview)
     /// </summary>
     [HttpGet("{voiceId:int}/preview")]
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetVoicePreview(int voiceId)
@@ -82,10 +87,13 @@ public class VoiceConfigurationsController : ControllerBase
     }
 
     /// <summary>
-    /// Set a voice as active (deactivates all others)
+    /// Set a voice as active (Admin only)
     /// </summary>
     [HttpPut("{voiceId:int}/activate")]
+    [Authorize(Roles = UserRoles.Admin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> SetActive(int voiceId)
     {
         _logger.LogInformation("Setting voice {VoiceId} as active", voiceId);

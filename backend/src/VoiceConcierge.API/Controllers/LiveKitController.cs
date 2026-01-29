@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -20,7 +21,11 @@ public class LiveKitController : ControllerBase
         _logger = logger;
     }
 
+    /// <summary>
+    /// Generate LiveKit token (Public - for voice clients)
+    /// </summary>
     [HttpPost("token")]
+    [AllowAnonymous]
     public IActionResult GetToken([FromBody] TokenRequest request)
     {
         try

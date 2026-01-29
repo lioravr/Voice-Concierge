@@ -1,4 +1,6 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using VoiceConcierge.Core.Domain.Entities;
 using VoiceConcierge.Core.DTOs;
 using VoiceConcierge.Core.Services;
 
@@ -18,9 +20,10 @@ public class FAQController : ControllerBase
     }
 
     /// <summary>
-    /// Get all FAQs
+    /// Get all FAQs (Public - for voice agent and guests)
     /// </summary>
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<List<FAQDto>>> GetAll()
     {
@@ -29,9 +32,10 @@ public class FAQController : ControllerBase
     }
 
     /// <summary>
-    /// Get FAQ by ID
+    /// Get FAQ by ID (Public - for voice agent and guests)
     /// </summary>
     [HttpGet("{id}")]
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<FAQDto>> GetById(Guid id)
@@ -45,9 +49,10 @@ public class FAQController : ControllerBase
     }
 
     /// <summary>
-    /// Search FAQs using semantic similarity
+    /// Search FAQs using semantic similarity (Public - for voice agent and guests)
     /// </summary>
     [HttpPost("search")]
+    [AllowAnonymous]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<ActionResult<List<FAQSearchResult>>> Search([FromBody] FAQSearchRequest request)
     {
@@ -65,11 +70,14 @@ public class FAQController : ControllerBase
     }
 
     /// <summary>
-    /// Create a new FAQ
+    /// Create a new FAQ (Admin only)
     /// </summary>
     [HttpPost]
+    [Authorize(Roles = UserRoles.Admin)]
     [ProducesResponseType(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<FAQDto>> Create([FromBody] CreateFAQDto dto)
     {
         _logger.LogInformation("Creating new FAQ: {Question}", dto.Question);
@@ -80,11 +88,14 @@ public class FAQController : ControllerBase
     }
 
     /// <summary>
-    /// Update an existing FAQ
+    /// Update an existing FAQ (Admin only)
     /// </summary>
     [HttpPut("{id}")]
+    [Authorize(Roles = UserRoles.Admin)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<ActionResult<FAQDto>> Update(Guid id, [FromBody] UpdateFAQDto dto)
     {
         try
@@ -102,10 +113,13 @@ public class FAQController : ControllerBase
     }
 
     /// <summary>
-    /// Delete an FAQ
+    /// Delete an FAQ (Admin only)
     /// </summary>
     [HttpDelete("{id}")]
+    [Authorize(Roles = UserRoles.Admin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     public async Task<IActionResult> Delete(Guid id)
     {
         _logger.LogInformation("Deleting FAQ {Id}", id);

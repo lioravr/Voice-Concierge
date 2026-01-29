@@ -1,8 +1,9 @@
 /**
- * Voice Agent Playground Page
+ * Voice Agent Playground Page (Public)
  */
 import { useState } from 'react';
-import { Search, Mic } from 'lucide-react';
+import { Search, Mic, LogIn } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useFAQSearch } from '../hooks/useFAQs';
 import { useActiveVoice } from '../hooks/useVoiceConfigurations';
 import VoiceClient from '../components/VoiceClient';
@@ -23,11 +24,30 @@ export default function PlaygroundPage() {
   };
 
   return (
-    <div>
-      <div className="mb-6">
-        <h2 className="text-3xl font-bold text-gray-900">Voice Agent Playground</h2>
-        <p className="text-gray-600 mt-2">
-          Test the voice agent with real voice conversation or semantic search simulation.
+    <div className="min-h-screen bg-gray-50">
+      {/* Public Header */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-gray-900">
+              🎰 Meridian Voice Concierge
+            </h1>
+            <Link
+              to="/login"
+              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+            >
+              <LogIn className="w-4 h-4 mr-2" />
+              Admin Login
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-6">
+          <h2 className="text-3xl font-bold text-gray-900">Voice Agent Playground</h2>
+          <p className="text-gray-600 mt-2">
+            Test the voice agent with real voice conversation or semantic search simulation.
         </p>
       </div>
 
@@ -210,6 +230,7 @@ export default function PlaygroundPage() {
             <p>Guest hears the answer in real-time</p>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

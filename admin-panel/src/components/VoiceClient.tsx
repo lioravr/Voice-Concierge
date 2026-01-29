@@ -62,11 +62,11 @@ export default function VoiceClient({ onConnectionChange }: VoiceClientProps) {
         `[${new Date().toLocaleTimeString()}] 🎤 Microphone enabled - Start speaking!`,
       ]);
 
-      room.on('trackSubscribed', (track, publication, participant) => {
+      room.on('trackSubscribed', (track) => {
         if (track.kind === 'audio') {
           const audioElement = track.attach();
           audioElement.autoplay = true;
-          audioElement.playsInline = true;
+          (audioElement as any).playsInline = true;
           document.body.appendChild(audioElement);
           
           setTranscript((prev) => [
