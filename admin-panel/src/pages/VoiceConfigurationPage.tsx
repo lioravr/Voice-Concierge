@@ -24,34 +24,49 @@ export default function VoiceConfigurationPage() {
       setPlayingVoiceId(voiceId);
       toast.info('Generating voice preview...');
 
+      console.log(`Fetching preview for voice ${voiceId} from ${API_BASE_URL}/voiceconfigurations/${voiceId}/preview`);
+
       // Fetch audio preview from backend
       const response = await axios.get(
         `${API_BASE_URL}/voiceconfigurations/${voiceId}/preview`,
         { responseType: 'blob' }
       );
 
+      console.log('Preview response received:', response.status, response.headers['content-type']);
+      console.log('Blob size:', response.data.size, 'bytes');
+
       // Create audio blob and play
       const audioBlob = new Blob([response.data], { type: 'audio/mpeg' });
       const audioUrl = URL.createObjectURL(audioBlob);
       const audio = new Audio(audioUrl);
 
+      console.log('Audio element created, attempting to play...');
+
       audio.onended = () => {
+        console.log('Audio playback ended');
         setPlayingVoiceId(null);
         URL.revokeObjectURL(audioUrl);
       };
 
-      audio.onerror = () => {
+      audio.onerror = (e) => {
+        console.error('Audio playback error:', e);
         setPlayingVoiceId(null);
         URL.revokeObjectURL(audioUrl);
         toast.error('Failed to play audio preview');
       };
 
       await audio.play();
+      console.log('Audio playing successfully');
       toast.success('Playing voice preview');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to preview voice:', error);
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       setPlayingVoiceId(null);
-      toast.error('Failed to generate voice preview');
+      toast.error(`Failed to generate voice preview: ${error.message}`);
     }
   };
 
