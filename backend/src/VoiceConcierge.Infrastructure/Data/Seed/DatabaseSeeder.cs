@@ -49,9 +49,10 @@ public class DatabaseSeeder
 
     private async Task SeedVoiceConfigurationsAsync()
     {
-        _logger.LogInformation("Seeding voice configurations...");
+        _logger.LogInformation("Seeding voice configurations from JSON...");
 
-        var voices = MeridianSeedData.VoiceConfigurations.Voices.Select((v, index) =>
+        var voiceData = MeridianSeedData.VoiceConfigurations.Voices;
+        var voices = voiceData.Select(v =>
             new VoiceConfiguration
             {
                 Id = Guid.NewGuid(),
@@ -73,13 +74,14 @@ public class DatabaseSeeder
 
     private async Task SeedFAQsAsync()
     {
-        _logger.LogInformation("Seeding FAQs with embeddings... This may take a few minutes.");
+        _logger.LogInformation("Seeding FAQs from JSON with embeddings... This may take a few minutes.");
 
+        var faqData = MeridianSeedData.FAQs.Items;
         var faqs = new List<FAQ>();
-        var totalFaqs = MeridianSeedData.FAQs.Items.Count;
+        var totalFaqs = faqData.Count;
         var processedCount = 0;
 
-        foreach (var item in MeridianSeedData.FAQs.Items)
+        foreach (var item in faqData)
         {
             processedCount++;
             _logger.LogInformation("Generating embedding for FAQ {Current}/{Total}: {Question}",
