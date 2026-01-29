@@ -48,7 +48,11 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
+        policy.WithOrigins(
+                "http://localhost:3000",  // Docker admin panel
+                "http://localhost:3001",  // Local dev server (alternate port)
+                "http://localhost:5173"   // Vite default port
+            )
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials();

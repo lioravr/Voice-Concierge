@@ -1,197 +1,103 @@
 """
-LiveKit Voice Agent Implementation
+LiveKit Voice Agent Implementation - Using LiveKit Agents v1.3.x API
 """
 import structlog
-from livekit import rtc
 from livekit.agents import (
-    AutoSubscribe,
-    JobContext,
-    WorkerOptions,
+    Agent,
+    AgentSession,
+    AgentServer,
+    RunContext,
     cli,
-    llm,
 )
-from livekit.agents.voice_assistant import VoiceAssistant
 from livekit.plugins import openai, silero
 
 from .config import AgentConfig
 from .backend_client import BackendClient
-from .conversation import ConversationManager
 
 logger = structlog.get_logger()
 
-
-class MeridianVoiceAgent:
-    """Voice Concierge Agent for The Meridian Casino & Resort"""
-    
-    def __init__(self, config: AgentConfig):
-        self.config = config
-        self.backend = BackendClient(
-            base_url=config.backend_api_url,
-            timeout=config.backend_timeout
-        )
-        self.conversation = ConversationManager(
-            config=config,
-            backend=self.backend
-        )
-    
-    async def entrypoint(self, ctx: JobContext):
-        """Main entrypoint for LiveKit agent"""
-        logger.info(
-            "agent_starting",
-            room=ctx.room.name,
-            agent=self.config.agent_name
-        )
-        
-        # Check backend health
-        is_healthy = await self.backend.health_check()
-        if not is_healthy:
-            logger.warning("backend_api_unhealthy")
-        
-        # Get active voice configuration
-        voice_config = await self.backend.get_active_voice()
-        voice_id = self.config.default_voice
-        
-        if voice_config and voice_config.get("providerVoiceId"):
-            voice_id = voice_config["providerVoiceId"]
-            logger.info(
-                "using_configured_voice",
-                voice_name=voice_config.get("name"),
-                voice_id=voice_id
-            )
-        
-        # Connect to the room
-        await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
-        
-        # Wait for first participant
-        participant = await ctx.wait_for_participant()
-        logger.info(
-            "participant_joined",
-            participant_id=participant.identity
-        )
-        
-        # Create LLM adapter for our custom conversation handler
-        llm_adapter = CustomLLMAdapter(self.conversation)
-        
-        # Initialize Voice Assistant
-        assistant = VoiceAssistant(
-            vad=silero.VAD.load(),  # Voice Activity Detection
-            stt=openai.STT(),  # Speech-to-Text
-            llm=llm_adapter,  # Our custom LLM handler
-            tts=openai.TTS(voice=voice_id, speed=self.config.speech_speed),  # Text-to-Speech
-            chat_ctx=llm.ChatContext(),  # Managed by our handler
-        )
-        
-        # Start the assistant
-        assistant.start(ctx.room, participant)
-        
-        # Send greeting
-        greeting = await self.conversation.get_greeting()
-        await assistant.say(greeting, allow_interruptions=True)
-        
-        logger.info("voice_assistant_started")
-        
-        # Monitor session
-        await self._monitor_session(ctx, assistant)
-    
-    async def _monitor_session(self, ctx: JobContext, assistant: VoiceAssistant):
-        """Monitor the conversation session"""
-        
-        @ctx.room.on("participant_disconnected")
-        def on_participant_disconnected(participant: rtc.RemoteParticipant):
-            logger.info(
-                "participant_disconnected",
-                participant_id=participant.identity
-            )
-        
-        @ctx.room.on("track_published")
-        def on_track_published(
-            publication: rtc.RemoteTrackPublication,
-            participant: rtc.RemoteParticipant
-        ):
-            logger.info(
-                "track_published",
-                participant_id=participant.identity,
-                track_sid=publication.sid,
-                track_kind=publication.kind
-            )
-        
-        # Keep session alive
-        try:
-            await ctx.wait_for_completion()
-        finally:
-            logger.info("session_completed")
-            await self.backend.close()
-    
-    async def cleanup(self):
-        """Cleanup resources"""
-        await self.backend.close()
+# Create the server instance
+server = AgentServer()
 
 
-class CustomLLMAdapter(llm.LLM):
-    """Custom LLM adapter that uses our ConversationManager"""
+@server.rtc_session()
+async def agent_entrypoint(ctx: RunContext):
+    """Agent entrypoint - called when a participant joins"""
     
-    def __init__(self, conversation_manager: ConversationManager):
-        super().__init__()
-        self.conversation = conversation_manager
+    logger.info("initializing_agent", room=ctx.room.name)
     
-    async def chat(
-        self,
-        chat_ctx: llm.ChatContext,
-        *,
-        conn_options: llm.LLMOptions = llm.LLMOptions(),
-    ) -> "llm.LLMStream":
-        """Process chat request"""
-        
-        # Get the last user message
-        user_messages = [msg for msg in chat_ctx.messages if msg.role == "user"]
-        if not user_messages:
-            return self._empty_stream()
-        
-        last_user_message = user_messages[-1].content
-        
-        logger.info("processing_user_message", message=last_user_message)
-        
-        # Process through our conversation manager
-        response = await self.conversation.process_question(last_user_message)
-        
-        # Create stream with response
-        return CustomLLMStream(response)
+    # Load configuration
+    config = AgentConfig.from_env()
+    config.validate()
+    
+    # Initialize backend client
+    backend = BackendClient(
+        base_url=config.backend_api_url,
+        timeout=config.backend_timeout
+    )
+    
+    # Get active voice configuration
+    tts_voice = config.default_voice
+    try:
+        active_voice = await backend.get_active_voice()
+        if active_voice and active_voice.get("providerVoiceId"):
+            logger.info("active_voice_retrieved", 
+                       name=active_voice.get("name"),
+                       provider_voice_id=active_voice.get("providerVoiceId"))
+            tts_voice = active_voice.get("providerVoiceId")
+    except Exception as e:
+        logger.warning("failed_to_get_active_voice", error=str(e))
+    
+    logger.info("using_voice", voice=tts_voice)
+    
+    # Load VAD model
+    vad = silero.VAD.load()
+    
+    logger.info("creating_session")
+    
+    # Create the agent session with OpenAI LLM
+    session = AgentSession(
+        stt=openai.STT(),
+        llm=openai.LLM(),  # Uses default GPT-4 model
+        tts=openai.TTS(voice=tts_voice, speed=config.speech_speed),
+        vad=vad,
+    )
+    
+    logger.info("session_created_starting")
+    
+    # Create agent with detailed instructions
+    agent = Agent(
+        instructions="""You are the helpful voice concierge for The Meridian Casino & Resort, a luxury destination in Las Vegas.
 
+**Your Role:**
+- Answer guest questions about the resort, amenities, services, and policies
+- Be warm, friendly, professional, and concise
+- Provide specific information when possible (times, locations, features)
 
-class CustomLLMStream(llm.LLMStream):
-    """Custom LLM stream that wraps our response"""
-    
-    def __init__(self, response: str):
-        super().__init__()
-        self._response = response
-        self._sent = False
-    
-    async def aclose(self) -> None:
-        """Close the stream"""
-        pass
-    
-    def __aiter__(self):
-        return self
-    
-    async def __anext__(self) -> llm.ChatChunk:
-        if self._sent:
-            raise StopAsyncIteration
-        
-        self._sent = True
-        
-        return llm.ChatChunk(
-            choices=[
-                llm.Choice(
-                    delta=llm.ChoiceDelta(
-                        content=self._response,
-                        role="assistant"
-                    )
-                )
-            ]
-        )
+**Key Information:**
+- Check-in: 3:00 PM, Check-out: 11:00 AM
+- Resort fee: $45/night (includes WiFi, pool access, fitness center)
+- Parking: Valet $35/day, Self-parking $20/day
+- Pet policy: Up to 2 pets (40 lbs each), $75/pet/night
+- Pool hours: 8 AM - 10 PM daily
+- Fitness center: 24 hours, complimentary
+- Spa: 9 AM - 9 PM, appointments recommended
+- Casino: 24 hours, 18+ only
+- Restaurants: Multiple options, some require reservations
+- Room service: 24 hours available
+- WiFi: Complimentary for guests
 
-
-def create_agent(config: AgentConfig):
-    """Factory function to create and return the agent entrypoint"""
-    agent = MeridianVoiceAgent(config)
-    return agent.entrypoint
+If you're not sure about something specific, offer to connect them with the front desk."""
+    )
+    
+    # Start the session with room and agent
+    await session.start(room=ctx.room, agent=agent)
+    
+    logger.info("session_started")
+    
+    # Send welcome greeting
+    try:
+        await session.say("Welcome to The Meridian Casino and Resort! I'm your voice concierge. How may I assist you today?")
+        logger.info("greeting_sent")
+    except Exception as e:
+        logger.warning("failed_to_send_greeting", error=str(e))

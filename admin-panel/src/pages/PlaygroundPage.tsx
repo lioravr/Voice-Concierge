@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Search, Mic } from 'lucide-react';
 import { useFAQSearch } from '../hooks/useFAQs';
 import { useActiveVoice } from '../hooks/useVoiceConfigurations';
+import VoiceClient from '../components/VoiceClient';
 
 export default function PlaygroundPage() {
   const [query, setQuery] = useState('');
@@ -26,8 +27,25 @@ export default function PlaygroundPage() {
       <div className="mb-6">
         <h2 className="text-3xl font-bold text-gray-900">Voice Agent Playground</h2>
         <p className="text-gray-600 mt-2">
-          Test semantic search and see how the voice agent will respond to guest questions.
+          Test the voice agent with real voice conversation or semantic search simulation.
         </p>
+      </div>
+
+      {/* Voice Client Section */}
+      <div className="mb-8">
+        <VoiceClient />
+      </div>
+
+      {/* Divider */}
+      <div className="relative mb-8">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-300"></div>
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="px-4 bg-gray-50 text-gray-500 font-semibold">
+            OR TEST WITH TEXT-BASED SEARCH
+          </span>
+        </div>
       </div>
 
       {/* Active Voice Info */}
