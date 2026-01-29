@@ -40,6 +40,9 @@ builder.Services.AddScoped<IVoiceConfigurationService, VoiceConfigurationService
 // Register database seeder
 builder.Services.AddScoped<DatabaseSeeder>();
 
+// Add HttpClient for external API calls
+builder.Services.AddHttpClient();
+
 // Add health checks
 builder.Services.AddHealthChecks();
 

@@ -8,4 +8,5 @@ public interface IVoiceConfigurationService
     Task<VoiceConfigurationDto?> GetActiveAsync();
     Task<VoiceConfigurationDto?> GetByVoiceIdAsync(int voiceId);
     Task SetActiveAsync(int voiceId);
+    Task<byte[]?> GeneratePreviewAsync(int voiceId);
 }
