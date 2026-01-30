@@ -3,6 +3,7 @@ using Moq;
 using Pgvector;
 using VoiceConcierge.Core.Domain.Entities;
 using VoiceConcierge.Core.Domain.Interfaces;
+using VoiceConcierge.Core.DTOs;
 using VoiceConcierge.Core.Services;
 using Xunit;
 
@@ -27,53 +28,74 @@ public class FAQServiceTests
         // Arrange
         var faqs = new List<FAQ>
         {
-            new FAQ { Id = 1, Question = "Q1", Answer = "A1", Category = "Cat1" },
-            new FAQ { Id = 2, Question = "Q2", Answer = "A2", Category = "Cat2" }
+            new FAQ { Id = Guid.NewGuid(), Question = "Q1", Answer = "A1", Category = "Cat1" },
+            new FAQ { Id = Guid.NewGuid(), Question = "Q2", Answer = "A2", Category = "Cat2" }
         };
-        _faqRepositoryMock.Setup(x => x.GetAllAsync()).ReturnsAsync(faqs);
+
+        _faqRepositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(faqs);
 
         // Act
         var result = await _faqService.GetAllAsync();
 
         // Assert
         result.Should().HaveCount(2);
-        result.Should().BeEquivalentTo(faqs);
+        result[0].Question.Should().Be("Q1");
+        result[1].Question.Should().Be("Q2");
+        _faqRepositoryMock.Verify(x => x.GetAllAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task GetByIdAsync_Should_Return_FAQ_When_Exists()
+    public async Task GetByIdAsync_Should_Return_FAQ_When_Found()
     {
         // Arrange
-        var faq = new FAQ { Id = 1, Question = "Test", Answer = "Answer" };
-        _faqRepositoryMock.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(faq);
+        var faqId = Guid.NewGuid();
+        var faq = new FAQ { Id = faqId, Question = "Test question?", Answer = "Test answer", Category = "Test" };
+
+        _faqRepositoryMock
+            .Setup(x => x.GetByIdAsync(faqId))
+            .ReturnsAsync(faq);
 
         // Act
-        var result = await _faqService.GetByIdAsync(1);
+        var result = await _faqService.GetByIdAsync(faqId);
 
         // Assert
         result.Should().NotBeNull();
-        result.Should().BeEquivalentTo(faq);
+        result!.Id.Should().Be(faqId);
+        result.Question.Should().Be("Test question?");
+        _faqRepositoryMock.Verify(x => x.GetByIdAsync(faqId), Times.Once);
     }
 
     [Fact]
-    public async Task GetByIdAsync_Should_Return_Null_When_Not_Exists()
+    public async Task GetByIdAsync_Should_Return_Null_When_Not_Found()
     {
         // Arrange
-        _faqRepositoryMock.Setup(x => x.GetByIdAsync(999)).ReturnsAsync((FAQ?)null);
+        var faqId = Guid.NewGuid();
+
+        _faqRepositoryMock
+            .Setup(x => x.GetByIdAsync(faqId))
+            .ReturnsAsync((FAQ?)null);
 
         // Act
-        var result = await _faqService.GetByIdAsync(999);
+        var result = await _faqService.GetByIdAsync(faqId);
 
         // Assert
         result.Should().BeNull();
+        _faqRepositoryMock.Verify(x => x.GetByIdAsync(faqId), Times.Once);
     }
 
     [Fact]
     public async Task CreateAsync_Should_Generate_Embedding_And_Create_FAQ()
     {
         // Arrange
-        var faq = new FAQ { Question = "New question?", Answer = "New answer" };
-        var embedding = new Vector(new float[] { 0.1f, 0.2f, 0.3f });
+        var createDto = new CreateFAQDto 
+        { 
+            Question = "New question?", 
+            Answer = "New answer",
+            Category = "Test"
+        };
+        var embedding = new float[] { 0.1f, 0.2f, 0.3f };
         
         _embeddingServiceMock
             .Setup(x => x.GenerateEmbeddingAsync("New question?"))
@@ -81,79 +103,153 @@ public class FAQServiceTests
         
         _faqRepositoryMock
             .Setup(x => x.CreateAsync(It.IsAny<FAQ>()))
-            .ReturnsAsync((FAQ f) => { f.Id = 1; return f; });
+            .ReturnsAsync((FAQ f) => { f.Id = Guid.NewGuid(); return f; });
 
         // Act
-        var result = await _faqService.CreateAsync(faq);
+        var result = await _faqService.CreateAsync(createDto);
 
         // Assert
         result.Should().NotBeNull();
-        result.Embedding.Should().NotBeNull();
-        result.Embedding.Should().Be(embedding);
+        result.Question.Should().Be("New question?");
+        result.Answer.Should().Be("New answer");
         _embeddingServiceMock.Verify(x => x.GenerateEmbeddingAsync("New question?"), Times.Once);
-        _faqRepositoryMock.Verify(x => x.CreateAsync(It.IsAny<FAQ>()), Times.Once);
+        _faqRepositoryMock.Verify(x => x.CreateAsync(It.Is<FAQ>(f => 
+            f.Question == "New question?" && 
+            f.Answer == "New answer" &&
+            f.Embedding != null)), Times.Once);
     }
 
     [Fact]
-    public async Task DeleteAsync_Should_Call_Repository_Delete()
+    public async Task UpdateAsync_Should_Regenerate_Embedding_And_Update_FAQ()
     {
         // Arrange
-        _faqRepositoryMock.Setup(x => x.DeleteAsync(1)).ReturnsAsync(true);
+        var faqId = Guid.NewGuid();
+        var existingFaq = new FAQ 
+        { 
+            Id = faqId, 
+            Question = "Old question?", 
+            Answer = "Old answer",
+            Category = "Old"
+        };
+        var updateDto = new UpdateFAQDto
+        {
+            Question = "Updated question?",
+            Answer = "Updated answer",
+            Category = "Updated"
+        };
+        var embedding = new float[] { 0.4f, 0.5f, 0.6f };
+
+        _faqRepositoryMock
+            .Setup(x => x.GetByIdAsync(faqId))
+            .ReturnsAsync(existingFaq);
+        
+        _embeddingServiceMock
+            .Setup(x => x.GenerateEmbeddingAsync("Updated question?"))
+            .ReturnsAsync(embedding);
+        
+        _faqRepositoryMock
+            .Setup(x => x.UpdateAsync(It.IsAny<FAQ>()))
+            .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _faqService.DeleteAsync(1);
+        var result = await _faqService.UpdateAsync(faqId, updateDto);
 
         // Assert
-        result.Should().BeTrue();
-        _faqRepositoryMock.Verify(x => x.DeleteAsync(1), Times.Once);
+        result.Should().NotBeNull();
+        result.Question.Should().Be("Updated question?");
+        result.Answer.Should().Be("Updated answer");
+        _embeddingServiceMock.Verify(x => x.GenerateEmbeddingAsync("Updated question?"), Times.Once);
+        _faqRepositoryMock.Verify(x => x.UpdateAsync(It.IsAny<FAQ>()), Times.Once);
     }
 
     [Fact]
-    public async Task SearchAsync_Should_Generate_Query_Embedding_And_Search()
+    public async Task UpdateAsync_Should_Throw_When_FAQ_Not_Found()
     {
         // Arrange
-        var query = "What time is check-in?";
-        var embedding = new Vector(new float[] { 0.1f, 0.2f });
-        var results = new List<FAQ>
+        var faqId = Guid.NewGuid();
+        var updateDto = new UpdateFAQDto { Question = "Test", Answer = "Test", Category = "Test" };
+
+        _faqRepositoryMock
+            .Setup(x => x.GetByIdAsync(faqId))
+            .ReturnsAsync((FAQ?)null);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(
+            async () => await _faqService.UpdateAsync(faqId, updateDto));
+    }
+
+    [Fact]
+    public async Task DeleteAsync_Should_Call_Repository()
+    {
+        // Arrange
+        var faqId = Guid.NewGuid();
+
+        _faqRepositoryMock
+            .Setup(x => x.DeleteAsync(faqId))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _faqService.DeleteAsync(faqId);
+
+        // Assert
+        _faqRepositoryMock.Verify(x => x.DeleteAsync(faqId), Times.Once);
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Generate_Embedding_And_Search()
+    {
+        // Arrange
+        var query = "check-in time";
+        var embedding = new float[] { 0.1f, 0.2f, 0.3f };
+        var faq1 = new FAQ { Id = Guid.NewGuid(), Question = "What are check-in hours?", Answer = "Check-in is from 3 PM." };
+        var faq2 = new FAQ { Id = Guid.NewGuid(), Question = "When can I check in?", Answer = "Check-in starts at 3 PM." };
+        var searchResults = new List<(FAQ FAQ, double Distance)>
         {
-            new FAQ { Id = 1, Question = "Check-in time?", Answer = "3 PM" }
+            (faq1, 0.15),
+            (faq2, 0.25)
         };
 
         _embeddingServiceMock
             .Setup(x => x.GenerateEmbeddingAsync(query))
             .ReturnsAsync(embedding);
-        
+
         _faqRepositoryMock
-            .Setup(x => x.SearchByVectorAsync(embedding, 5))
-            .ReturnsAsync(results);
+            .Setup(x => x.SearchByEmbeddingAsync(embedding, 5, 0.3))
+            .ReturnsAsync(searchResults);
 
         // Act
-        var result = await _faqService.SearchAsync(query, 5);
-
-        // Assert
-        result.Should().HaveCount(1);
-        result.First().Question.Should().Be("Check-in time?");
-        _embeddingServiceMock.Verify(x => x.GenerateEmbeddingAsync(query), Times.Once);
-        _faqRepositoryMock.Verify(x => x.SearchByVectorAsync(embedding, 5), Times.Once);
-    }
-
-    [Fact]
-    public async Task GetByCategoryAsync_Should_Return_FAQs_For_Category()
-    {
-        // Arrange
-        var category = "Hotel Services";
-        var faqs = new List<FAQ>
-        {
-            new FAQ { Id = 1, Question = "Q1", Category = category },
-            new FAQ { Id = 2, Question = "Q2", Category = category }
-        };
-        _faqRepositoryMock.Setup(x => x.GetByCategoryAsync(category)).ReturnsAsync(faqs);
-
-        // Act
-        var result = await _faqService.GetByCategoryAsync(category);
+        var result = await _faqService.SearchAsync(query, 5, 0.3);
 
         // Assert
         result.Should().HaveCount(2);
-        result.Should().OnlyContain(f => f.Category == category);
+        result[0].FAQ.Question.Should().Be("What are check-in hours?");
+        result[0].Distance.Should().Be(0.15);
+        result[1].FAQ.Question.Should().Be("When can I check in?");
+        result[1].Distance.Should().Be(0.25);
+        _embeddingServiceMock.Verify(x => x.GenerateEmbeddingAsync(query), Times.Once);
+        _faqRepositoryMock.Verify(x => x.SearchByEmbeddingAsync(embedding, 5, 0.3), Times.Once);
+    }
+
+    [Fact]
+    public async Task SearchAsync_Should_Return_Empty_When_No_Results()
+    {
+        // Arrange
+        var query = "something unknown";
+        var embedding = new float[] { 0.7f, 0.8f, 0.9f };
+        var searchResults = new List<(FAQ FAQ, double Distance)>();
+
+        _embeddingServiceMock
+            .Setup(x => x.GenerateEmbeddingAsync(query))
+            .ReturnsAsync(embedding);
+
+        _faqRepositoryMock
+            .Setup(x => x.SearchByEmbeddingAsync(embedding, 5, 0.3))
+            .ReturnsAsync(searchResults);
+
+        // Act
+        var result = await _faqService.SearchAsync(query, 5, 0.3);
+
+        // Assert
+        result.Should().BeEmpty();
     }
 }

@@ -4,140 +4,260 @@ using VoiceConcierge.Core.Domain.Entities;
 using VoiceConcierge.Core.Domain.Interfaces;
 using VoiceConcierge.Core.Services;
 using Xunit;
+using Microsoft.Extensions.Configuration;
+using Moq.Protected;
+using System.Net;
 
 namespace VoiceConcierge.Tests.Infrastructure.Services;
 
 public class VoiceConfigurationServiceTests
 {
     private readonly Mock<IVoiceConfigurationRepository> _repositoryMock;
-    private readonly VoiceConfigurationService _service;
+    private readonly Mock<IConfiguration> _configurationMock;
+    private readonly Mock<IHttpClientFactory> _httpClientFactoryMock;
+    private readonly Mock<HttpMessageHandler> _httpMessageHandlerMock;
+    private readonly VoiceConfigurationService _voiceService;
 
     public VoiceConfigurationServiceTests()
     {
         _repositoryMock = new Mock<IVoiceConfigurationRepository>();
-        _service = new VoiceConfigurationService(_repositoryMock.Object);
+        _configurationMock = new Mock<IConfiguration>();
+        _httpClientFactoryMock = new Mock<IHttpClientFactory>();
+        _httpMessageHandlerMock = new Mock<HttpMessageHandler>();
+
+        // Setup HTTP client factory
+        var httpClient = new HttpClient(_httpMessageHandlerMock.Object);
+        _httpClientFactoryMock
+            .Setup(x => x.CreateClient(It.IsAny<string>()))
+            .Returns(httpClient);
+
+        // Setup configuration
+        _configurationMock
+            .Setup(x => x["OpenAI:ApiKey"])
+            .Returns("test-api-key");
+
+        _voiceService = new VoiceConfigurationService(
+            _repositoryMock.Object,
+            _configurationMock.Object,
+            _httpClientFactoryMock.Object);
     }
 
     [Fact]
-    public async Task GetAllAsync_Should_Return_All_Configurations()
+    public async Task GetAllAsync_Should_Return_All_Voices()
     {
         // Arrange
-        var configs = new List<VoiceConfiguration>
+        var voices = new List<VoiceConfiguration>
         {
-            new VoiceConfiguration { Id = 1, Name = "James", IsActive = true },
-            new VoiceConfiguration { Id = 2, Name = "Sofia", IsActive = false }
+            new VoiceConfiguration 
+            { 
+                Id = Guid.NewGuid(), 
+                VoiceId = 1, 
+                Name = "James", 
+                Description = "Professional male voice",
+                ProviderVoiceId = "alloy",
+                IsActive = true 
+            },
+            new VoiceConfiguration 
+            { 
+                Id = Guid.NewGuid(), 
+                VoiceId = 2, 
+                Name = "Sofia", 
+                Description = "Friendly female voice",
+                ProviderVoiceId = "nova",
+                IsActive = false 
+            }
         };
-        _repositoryMock.Setup(x => x.GetAllAsync()).ReturnsAsync(configs);
+
+        _repositoryMock
+            .Setup(x => x.GetAllAsync())
+            .ReturnsAsync(voices);
 
         // Act
-        var result = await _service.GetAllAsync();
+        var result = await _voiceService.GetAllAsync();
 
         // Assert
         result.Should().HaveCount(2);
-        result.Should().BeEquivalentTo(configs);
+        result[0].Name.Should().Be("James");
+        result[0].VoiceId.Should().Be(1);
+        result[0].IsActive.Should().BeTrue();
+        result[1].Name.Should().Be("Sofia");
+        result[1].VoiceId.Should().Be(2);
+        result[1].IsActive.Should().BeFalse();
+        _repositoryMock.Verify(x => x.GetAllAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task GetActiveAsync_Should_Return_Only_Active_Configuration()
+    public async Task GetActiveAsync_Should_Return_Active_Voice()
     {
         // Arrange
-        var activeConfig = new VoiceConfiguration 
-        { 
-            Id = 1, 
-            Name = "James", 
-            IsActive = true 
-        };
-        _repositoryMock.Setup(x => x.GetActiveAsync()).ReturnsAsync(activeConfig);
-
-        // Act
-        var result = await _service.GetActiveAsync();
-
-        // Assert
-        result.Should().NotBeNull();
-        result.Should().BeEquivalentTo(activeConfig);
-        result!.IsActive.Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task GetByIdAsync_Should_Return_Configuration_When_Exists()
-    {
-        // Arrange
-        var config = new VoiceConfiguration { Id = 1, Name = "James" };
-        _repositoryMock.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(config);
-
-        // Act
-        var result = await _service.GetByIdAsync(1);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.Should().BeEquivalentTo(config);
-    }
-
-    [Fact]
-    public async Task CreateAsync_Should_Create_New_Configuration()
-    {
-        // Arrange
-        var config = new VoiceConfiguration 
-        { 
-            Name = "Marcus", 
-            Provider = "OpenAI",
-            ProviderVoiceId = "onyx"
-        };
-        
-        _repositoryMock
-            .Setup(x => x.CreateAsync(It.IsAny<VoiceConfiguration>()))
-            .ReturnsAsync((VoiceConfiguration c) => { c.Id = 3; return c; });
-
-        // Act
-        var result = await _service.CreateAsync(config);
-
-        // Assert
-        result.Should().NotBeNull();
-        result.Id.Should().Be(3);
-        _repositoryMock.Verify(x => x.CreateAsync(It.IsAny<VoiceConfiguration>()), Times.Once);
-    }
-
-    [Fact]
-    public async Task SetActiveAsync_Should_Deactivate_Others_And_Activate_Target()
-    {
-        // Arrange
-        var targetId = 2;
-        var allConfigs = new List<VoiceConfiguration>
+        var activeVoice = new VoiceConfiguration
         {
-            new VoiceConfiguration { Id = 1, Name = "James", IsActive = true },
-            new VoiceConfiguration { Id = 2, Name = "Sofia", IsActive = false },
-            new VoiceConfiguration { Id = 3, Name = "Marcus", IsActive = false }
+            Id = Guid.NewGuid(),
+            VoiceId = 1,
+            Name = "James",
+            Description = "Professional male voice",
+            ProviderVoiceId = "alloy",
+            IsActive = true
         };
 
-        _repositoryMock.Setup(x => x.GetAllAsync()).ReturnsAsync(allConfigs);
         _repositoryMock
-            .Setup(x => x.UpdateAsync(It.IsAny<int>(), It.IsAny<VoiceConfiguration>()))
-            .ReturnsAsync((int id, VoiceConfiguration c) => c);
+            .Setup(x => x.GetActiveAsync())
+            .ReturnsAsync(activeVoice);
 
         // Act
-        var result = await _service.SetActiveAsync(targetId);
+        var result = await _voiceService.GetActiveAsync();
 
         // Assert
-        result.Should().BeTrue();
-        _repositoryMock.Verify(
-            x => x.UpdateAsync(It.IsAny<int>(), It.Is<VoiceConfiguration>(v => !v.IsActive)), 
-            Times.Exactly(2)); // Deactivate 2 others
-        _repositoryMock.Verify(
-            x => x.UpdateAsync(targetId, It.Is<VoiceConfiguration>(v => v.IsActive)), 
-            Times.Once); // Activate target
+        result.Should().NotBeNull();
+        result!.Name.Should().Be("James");
+        result.IsActive.Should().BeTrue();
+        _repositoryMock.Verify(x => x.GetActiveAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task DeleteAsync_Should_Delete_Configuration()
+    public async Task GetActiveAsync_Should_Return_Null_When_No_Active_Voice()
     {
         // Arrange
-        _repositoryMock.Setup(x => x.DeleteAsync(1)).ReturnsAsync(true);
+        _repositoryMock
+            .Setup(x => x.GetActiveAsync())
+            .ReturnsAsync((VoiceConfiguration?)null);
 
         // Act
-        var result = await _service.DeleteAsync(1);
+        var result = await _voiceService.GetActiveAsync();
 
         // Assert
-        result.Should().BeTrue();
-        _repositoryMock.Verify(x => x.DeleteAsync(1), Times.Once);
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetByVoiceIdAsync_Should_Return_Voice_When_Found()
+    {
+        // Arrange
+        var voiceId = 2;
+        var voice = new VoiceConfiguration
+        {
+            Id = Guid.NewGuid(),
+            VoiceId = voiceId,
+            Name = "Sofia",
+            Description = "Friendly female voice",
+            ProviderVoiceId = "nova",
+            IsActive = false
+        };
+
+        _repositoryMock
+            .Setup(x => x.GetByVoiceIdAsync(voiceId))
+            .ReturnsAsync(voice);
+
+        // Act
+        var result = await _voiceService.GetByVoiceIdAsync(voiceId);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.VoiceId.Should().Be(voiceId);
+        result.Name.Should().Be("Sofia");
+        _repositoryMock.Verify(x => x.GetByVoiceIdAsync(voiceId), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetByVoiceIdAsync_Should_Return_Null_When_Not_Found()
+    {
+        // Arrange
+        var voiceId = 999;
+
+        _repositoryMock
+            .Setup(x => x.GetByVoiceIdAsync(voiceId))
+            .ReturnsAsync((VoiceConfiguration?)null);
+
+        // Act
+        var result = await _voiceService.GetByVoiceIdAsync(voiceId);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task SetActiveAsync_Should_Call_Repository()
+    {
+        // Arrange
+        var voiceId = 3;
+
+        _repositoryMock
+            .Setup(x => x.SetActiveAsync(voiceId))
+            .Returns(Task.CompletedTask);
+
+        // Act
+        await _voiceService.SetActiveAsync(voiceId);
+
+        // Assert
+        _repositoryMock.Verify(x => x.SetActiveAsync(voiceId), Times.Once);
+    }
+
+    [Fact]
+    public async Task GeneratePreviewAsync_Should_Return_Null_When_Voice_Not_Found()
+    {
+        // Arrange
+        var voiceId = 999;
+
+        _repositoryMock
+            .Setup(x => x.GetByVoiceIdAsync(voiceId))
+            .ReturnsAsync((VoiceConfiguration?)null);
+
+        // Act
+        var result = await _voiceService.GeneratePreviewAsync(voiceId);
+
+        // Assert
+        result.Should().BeNull();
+        _repositoryMock.Verify(x => x.GetByVoiceIdAsync(voiceId), Times.Once);
+    }
+
+    [Fact]
+    public async Task GeneratePreviewAsync_Should_Call_OpenAI_TTS_API()
+    {
+        // Arrange
+        var voiceId = 1;
+        var voice = new VoiceConfiguration
+        {
+            Id = Guid.NewGuid(),
+            VoiceId = voiceId,
+            Name = "James",
+            ProviderVoiceId = "alloy",
+            IsActive = true
+        };
+        var audioData = new byte[] { 1, 2, 3, 4, 5 };
+
+        _repositoryMock
+            .Setup(x => x.GetByVoiceIdAsync(voiceId))
+            .ReturnsAsync(voice);
+
+        _httpMessageHandlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .ReturnsAsync(new HttpResponseMessage
+            {
+                StatusCode = HttpStatusCode.OK,
+                Content = new ByteArrayContent(audioData)
+            });
+
+        // Act
+        var result = await _voiceService.GeneratePreviewAsync(voiceId);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Should().BeEquivalentTo(audioData);
+        _repositoryMock.Verify(x => x.GetByVoiceIdAsync(voiceId), Times.Once);
+        
+        // Verify HTTP request was made
+        _httpMessageHandlerMock
+            .Protected()
+            .Verify(
+                "SendAsync",
+                Times.Once(),
+                ItExpr.Is<HttpRequestMessage>(req =>
+                    req.Method == HttpMethod.Post &&
+                    req.RequestUri!.ToString() == "https://api.openai.com/v1/audio/speech"),
+                ItExpr.IsAny<CancellationToken>());
     }
 }

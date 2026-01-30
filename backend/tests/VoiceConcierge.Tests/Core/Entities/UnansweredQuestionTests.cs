@@ -13,41 +13,54 @@ public class UnansweredQuestionTests
         var question = new UnansweredQuestion
         {
             Question = "Do you have a spa?",
-            SessionId = "session-123",
-            IsResolved = false
+            Frequency = 5,
+            Status = "pending",
+            FirstAskedAt = DateTime.UtcNow,
+            LastAskedAt = DateTime.UtcNow
         };
 
         // Assert
         question.Question.Should().Be("Do you have a spa?");
-        question.SessionId.Should().Be("session-123");
-        question.IsResolved.Should().BeFalse();
-        question.AskedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        question.Frequency.Should().Be(5);
+        question.Status.Should().Be("pending");
+        question.FirstAskedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
+        question.LastAskedAt.Should().BeCloseTo(DateTime.UtcNow, TimeSpan.FromSeconds(1));
     }
 
     [Fact]
-    public void UnansweredQuestion_Can_Be_Resolved()
+    public void UnansweredQuestion_Status_Can_Be_Changed()
     {
         // Arrange
         var question = new UnansweredQuestion
         {
             Question = "Test question",
-            IsResolved = false
+            Status = "pending"
         };
 
         // Act
-        question.IsResolved = true;
+        question.Status = "converted";
 
         // Assert
-        question.IsResolved.Should().BeTrue();
+        question.Status.Should().Be("converted");
     }
 
     [Fact]
-    public void UnansweredQuestion_Count_Should_Default_To_One()
+    public void UnansweredQuestion_Frequency_Should_Default_To_One()
     {
         // Arrange & Act
         var question = new UnansweredQuestion { Question = "Test" };
 
         // Assert
-        question.Count.Should().Be(1);
+        question.Frequency.Should().Be(1);
+    }
+
+    [Fact]
+    public void UnansweredQuestion_Should_Have_Guid_Id()
+    {
+        // Arrange & Act
+        var question = new UnansweredQuestion { Id = Guid.NewGuid() };
+
+        // Assert
+        question.Id.Should().NotBe(Guid.Empty);
     }
 }

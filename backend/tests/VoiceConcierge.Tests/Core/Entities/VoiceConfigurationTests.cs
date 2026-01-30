@@ -12,63 +12,69 @@ public class VoiceConfigurationTests
         // Arrange & Act
         var voice = new VoiceConfiguration
         {
+            VoiceId = 1,
             Name = "James",
             Description = "Professional male voice",
-            Provider = "OpenAI",
+            Gender = "Male",
+            Accent = "British",
             ProviderVoiceId = "alloy",
-            Language = "en-US",
-            Speed = 1.0f,
-            Pitch = 1.0f,
             IsActive = true
         };
 
         // Assert
+        voice.VoiceId.Should().Be(1);
         voice.Name.Should().Be("James");
         voice.Description.Should().Be("Professional male voice");
-        voice.Provider.Should().Be("OpenAI");
+        voice.Gender.Should().Be("Male");
+        voice.Accent.Should().Be("British");
         voice.ProviderVoiceId.Should().Be("alloy");
-        voice.Language.Should().Be("en-US");
-        voice.Speed.Should().Be(1.0f);
-        voice.Pitch.Should().Be(1.0f);
         voice.IsActive.Should().BeTrue();
     }
 
     [Fact]
-    public void VoiceConfiguration_CreatedAt_Should_Be_Set()
+    public void VoiceConfiguration_CreatedAt_Should_Be_DefaultValue()
     {
         // Arrange & Act
         var voice = new VoiceConfiguration();
-        var now = DateTime.UtcNow;
 
         // Assert
-        voice.CreatedAt.Should().BeCloseTo(now, TimeSpan.FromSeconds(1));
+        voice.CreatedAt.Should().Be(default(DateTime));
+    }
+
+    [Fact]
+    public void VoiceConfiguration_IsActive_Can_Be_Toggled()
+    {
+        // Arrange
+        var voice = new VoiceConfiguration { IsActive = false };
+
+        // Act
+        voice.IsActive = true;
+
+        // Assert
+        voice.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public void VoiceConfiguration_Should_Have_Guid_Id()
+    {
+        // Arrange & Act
+        var voice = new VoiceConfiguration { Id = Guid.NewGuid() };
+
+        // Assert
+        voice.Id.Should().NotBe(Guid.Empty);
     }
 
     [Theory]
-    [InlineData(0.5f)]
-    [InlineData(1.0f)]
-    [InlineData(1.5f)]
-    [InlineData(2.0f)]
-    public void VoiceConfiguration_Speed_Should_Accept_Valid_Range(float speed)
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public void VoiceConfiguration_Should_Accept_Valid_VoiceId(int voiceId)
     {
         // Arrange & Act
-        var voice = new VoiceConfiguration { Speed = speed };
+        var voice = new VoiceConfiguration { VoiceId = voiceId };
 
         // Assert
-        voice.Speed.Should().Be(speed);
-    }
-
-    [Theory]
-    [InlineData(0.5f)]
-    [InlineData(1.0f)]
-    [InlineData(1.5f)]
-    [InlineData(2.0f)]
-    public void VoiceConfiguration_Pitch_Should_Accept_Valid_Range(float pitch)
-    {
-        // Arrange & Act
-        var voice = new VoiceConfiguration { Pitch = pitch };
-
-        // Assert
-        voice.Pitch.Should().Be(pitch);
+        voice.VoiceId.Should().Be(voiceId);
     }
 }

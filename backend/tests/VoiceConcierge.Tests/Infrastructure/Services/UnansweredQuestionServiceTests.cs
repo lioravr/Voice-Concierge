@@ -2,6 +2,7 @@ using FluentAssertions;
 using Moq;
 using VoiceConcierge.Core.Domain.Entities;
 using VoiceConcierge.Core.Domain.Interfaces;
+using VoiceConcierge.Core.DTOs;
 using VoiceConcierge.Core.Services;
 using Xunit;
 
@@ -9,110 +10,199 @@ namespace VoiceConcierge.Tests.Infrastructure.Services;
 
 public class UnansweredQuestionServiceTests
 {
-    private readonly Mock<IUnansweredQuestionRepository> _repositoryMock;
-    private readonly UnansweredQuestionService _service;
+    private readonly Mock<IUnansweredQuestionRepository> _questionRepositoryMock;
+    private readonly Mock<IFAQService> _faqServiceMock;
+    private readonly UnansweredQuestionService _questionService;
 
     public UnansweredQuestionServiceTests()
     {
-        _repositoryMock = new Mock<IUnansweredQuestionRepository>();
-        _service = new UnansweredQuestionService(_repositoryMock.Object);
+        _questionRepositoryMock = new Mock<IUnansweredQuestionRepository>();
+        _faqServiceMock = new Mock<IFAQService>();
+        _questionService = new UnansweredQuestionService(
+            _questionRepositoryMock.Object,
+            _faqServiceMock.Object);
     }
 
     [Fact]
-    public async Task GetAllAsync_Should_Return_All_Questions()
+    public async Task GetAllPendingAsync_Should_Return_All_Pending_Questions()
     {
         // Arrange
         var questions = new List<UnansweredQuestion>
         {
-            new UnansweredQuestion { Id = 1, Question = "Q1", IsResolved = false },
-            new UnansweredQuestion { Id = 2, Question = "Q2", IsResolved = true }
+            new UnansweredQuestion { Id = Guid.NewGuid(), Question = "Question 1", Status = "pending", Frequency = 1 },
+            new UnansweredQuestion { Id = Guid.NewGuid(), Question = "Question 2", Status = "pending", Frequency = 3 }
         };
-        _repositoryMock.Setup(x => x.GetAllAsync()).ReturnsAsync(questions);
+
+        _questionRepositoryMock
+            .Setup(x => x.GetAllPendingAsync())
+            .ReturnsAsync(questions);
 
         // Act
-        var result = await _service.GetAllAsync();
+        var result = await _questionService.GetAllPendingAsync();
 
         // Assert
         result.Should().HaveCount(2);
-        result.Should().BeEquivalentTo(questions);
+        result[0].Question.Should().Be("Question 1");
+        result[1].Question.Should().Be("Question 2");
+        result[1].Frequency.Should().Be(3);
+        _questionRepositoryMock.Verify(x => x.GetAllPendingAsync(), Times.Once);
     }
 
     [Fact]
-    public async Task GetPendingAsync_Should_Return_Only_Unresolved_Questions()
+    public async Task GetByIdAsync_Should_Return_Question_When_Found()
     {
         // Arrange
-        var questions = new List<UnansweredQuestion>
+        var questionId = Guid.NewGuid();
+        var question = new UnansweredQuestion 
+        { 
+            Id = questionId, 
+            Question = "Test question?", 
+            Status = "pending",
+            Frequency = 5 
+        };
+
+        _questionRepositoryMock
+            .Setup(x => x.GetByIdAsync(questionId))
+            .ReturnsAsync(question);
+
+        // Act
+        var result = await _questionService.GetByIdAsync(questionId);
+
+        // Assert
+        result.Should().NotBeNull();
+        result!.Id.Should().Be(questionId);
+        result.Question.Should().Be("Test question?");
+        result.Frequency.Should().Be(5);
+        _questionRepositoryMock.Verify(x => x.GetByIdAsync(questionId), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetByIdAsync_Should_Return_Null_When_Not_Found()
+    {
+        // Arrange
+        var questionId = Guid.NewGuid();
+
+        _questionRepositoryMock
+            .Setup(x => x.GetByIdAsync(questionId))
+            .ReturnsAsync((UnansweredQuestion?)null);
+
+        // Act
+        var result = await _questionService.GetByIdAsync(questionId);
+
+        // Assert
+        result.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RecordAsync_Should_Record_New_Question()
+    {
+        // Arrange
+        var questionText = "Do you have a spa?";
+        var recordedQuestion = new UnansweredQuestion
         {
-            new UnansweredQuestion { Id = 1, Question = "Q1", IsResolved = false },
-            new UnansweredQuestion { Id = 2, Question = "Q2", IsResolved = false }
+            Id = Guid.NewGuid(),
+            Question = questionText,
+            Status = "pending",
+            Frequency = 1,
+            FirstAskedAt = DateTime.UtcNow,
+            LastAskedAt = DateTime.UtcNow
         };
-        _repositoryMock.Setup(x => x.GetPendingAsync()).ReturnsAsync(questions);
+
+        _questionRepositoryMock
+            .Setup(x => x.RecordAsync(questionText))
+            .ReturnsAsync(recordedQuestion);
 
         // Act
-        var result = await _service.GetPendingAsync();
-
-        // Assert
-        result.Should().HaveCount(2);
-        result.Should().OnlyContain(q => !q.IsResolved);
-    }
-
-    [Fact]
-    public async Task CreateAsync_Should_Create_New_Question()
-    {
-        // Arrange
-        var question = new UnansweredQuestion 
-        { 
-            Question = "New question", 
-            SessionId = "session-123" 
-        };
-        
-        _repositoryMock
-            .Setup(x => x.CreateAsync(It.IsAny<UnansweredQuestion>()))
-            .ReturnsAsync((UnansweredQuestion q) => { q.Id = 1; return q; });
-
-        // Act
-        var result = await _service.CreateAsync(question);
+        var result = await _questionService.RecordAsync(questionText);
 
         // Assert
         result.Should().NotBeNull();
-        result.Id.Should().Be(1);
-        _repositoryMock.Verify(x => x.CreateAsync(It.IsAny<UnansweredQuestion>()), Times.Once);
+        result.Question.Should().Be(questionText);
+        result.Status.Should().Be("pending");
+        result.Frequency.Should().Be(1);
+        _questionRepositoryMock.Verify(x => x.RecordAsync(questionText), Times.Once);
     }
 
     [Fact]
-    public async Task MarkAsResolvedAsync_Should_Mark_Question_Resolved()
+    public async Task ConvertToFAQAsync_Should_Create_FAQ_And_Mark_Question_Converted()
     {
         // Arrange
-        var question = new UnansweredQuestion 
-        { 
-            Id = 1, 
-            Question = "Test", 
-            IsResolved = false 
+        var questionId = Guid.NewGuid();
+        var question = new UnansweredQuestion
+        {
+            Id = questionId,
+            Question = "Do you have a spa?",
+            Status = "pending",
+            Frequency = 5
         };
-        
-        _repositoryMock.Setup(x => x.GetByIdAsync(1)).ReturnsAsync(question);
-        _repositoryMock.Setup(x => x.UpdateAsync(1, It.IsAny<UnansweredQuestion>()))
-            .ReturnsAsync((int id, UnansweredQuestion q) => { q.IsResolved = true; return q; });
+        var answer = "Yes, we have a luxurious spa on the 3rd floor.";
+        var category = "Amenities";
+        var createdFaq = new FAQDto
+        {
+            Id = Guid.NewGuid(),
+            Question = question.Question,
+            Answer = answer,
+            Category = category,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _questionRepositoryMock
+            .Setup(x => x.GetByIdAsync(questionId))
+            .ReturnsAsync(question);
+
+        _faqServiceMock
+            .Setup(x => x.CreateAsync(It.Is<CreateFAQDto>(dto => 
+                dto.Question == question.Question && 
+                dto.Answer == answer &&
+                dto.Category == category)))
+            .ReturnsAsync(createdFaq);
+
+        _questionRepositoryMock
+            .Setup(x => x.ConvertToFAQAsync(questionId, answer))
+            .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.MarkAsResolvedAsync(1);
+        var result = await _questionService.ConvertToFAQAsync(questionId, answer, category);
 
         // Assert
         result.Should().NotBeNull();
-        result!.IsResolved.Should().BeTrue();
+        result.Question.Should().Be(question.Question);
+        result.Answer.Should().Be(answer);
+        result.Category.Should().Be(category);
+        _faqServiceMock.Verify(x => x.CreateAsync(It.IsAny<CreateFAQDto>()), Times.Once);
+        _questionRepositoryMock.Verify(x => x.ConvertToFAQAsync(questionId, answer), Times.Once);
     }
 
     [Fact]
-    public async Task DeleteAsync_Should_Delete_Question()
+    public async Task ConvertToFAQAsync_Should_Throw_When_Question_Not_Found()
     {
         // Arrange
-        _repositoryMock.Setup(x => x.DeleteAsync(1)).ReturnsAsync(true);
+        var questionId = Guid.NewGuid();
+        var answer = "Some answer";
+
+        _questionRepositoryMock
+            .Setup(x => x.GetByIdAsync(questionId))
+            .ReturnsAsync((UnansweredQuestion?)null);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<KeyNotFoundException>(
+            async () => await _questionService.ConvertToFAQAsync(questionId, answer));
+    }
+
+    [Fact]
+    public async Task DismissAsync_Should_Call_Repository()
+    {
+        // Arrange
+        var questionId = Guid.NewGuid();
+
+        _questionRepositoryMock
+            .Setup(x => x.DismissAsync(questionId))
+            .Returns(Task.CompletedTask);
 
         // Act
-        var result = await _service.DeleteAsync(1);
+        await _questionService.DismissAsync(questionId);
 
         // Assert
-        result.Should().BeTrue();
-        _repositoryMock.Verify(x => x.DeleteAsync(1), Times.Once);
+        _questionRepositoryMock.Verify(x => x.DismissAsync(questionId), Times.Once);
     }
 }
