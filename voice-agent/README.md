@@ -36,6 +36,8 @@ This agent provides:
 - ✅ **Semantic Search**: Vector-based FAQ retrieval
 - ✅ **Conversation Context**: Maintains conversation history
 - ✅ **Voice Configuration**: Supports multiple voice personalities
+- ✅ **User Voice Preference**: Reads voice selection from user token
+- ✅ **Dynamic Voice Selection**: Per-conversation voice configuration
 
 ### Voice Agent Behavior
 - **Professional & Friendly**: Warm, welcoming tone
@@ -249,10 +251,21 @@ Logs include:
 
 ## Testing
 
-### Unit Tests
+### Unit Tests (Python)
 ```bash
-pytest tests/
+# Install test dependencies
+pip install -r requirements-test.txt
+
+# Run tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=agent --cov-report=html
 ```
+
+**Available Tests:**
+- `test_backend_client.py` (8 tests) - Backend API integration
+- `test_conversation.py` (5 tests) - Conversation logic
 
 ### Integration Test
 ```bash
@@ -261,7 +274,7 @@ python -c "from agent.backend_client import BackendClient; import asyncio; async
 ```
 
 ### Manual Testing
-Use the Admin Panel Playground to test voice interaction.
+Use the Admin Panel Playground at http://localhost:3000/playground to test voice interaction.
 
 ## Troubleshooting
 

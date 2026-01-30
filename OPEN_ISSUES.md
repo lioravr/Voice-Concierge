@@ -1,5 +1,17 @@
 # Open Issues
 
+## ✅ Recently Resolved
+
+### Unit Tests Complete (January 30, 2026)
+**Status:** ✅ **RESOLVED**  
+**Details:**
+- All 41 C# unit tests passing (100% success rate)
+- Complete test coverage for entities and services
+- All tests refactored to match actual implementation
+- Documentation updated in `UNIT_TESTS_README.md`
+
+---
+
 ## Minor Issues (Non-Blocking)
 
 ### 1. FAQ Update Concurrency Bug ⚠️

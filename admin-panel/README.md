@@ -4,30 +4,38 @@ React-based admin panel for managing the Voice Concierge system at The Meridian 
 
 ## Features
 
-### 1. FAQ Management
+### 🔐 Authentication & Authorization
+- ✅ **JWT Authentication**: Secure login with role-based access
+- ✅ **Protected Routes**: Admin routes require authentication
+- ✅ **User Roles**: Admin and Guest roles with different permissions
+- ✅ **Auto Token Management**: Automatic token injection and refresh
+- ✅ **Default Credentials**: admin/admin123, guest/guest123
+
+### 1. FAQ Management (Admin Only)
 - ✅ **CRUD Operations**: Create, Read, Update, Delete FAQs
 - ✅ **Semantic Search**: Test search with similarity scores
 - ✅ **Category Organization**: Group FAQs by category
 - ✅ **Real-time Updates**: Automatic list refresh after changes
 
-### 2. Unanswered Questions Queue
+### 2. Unanswered Questions Queue (Admin Only)
 - ✅ **Question Monitoring**: View all questions the agent couldn't answer
 - ✅ **Frequency Tracking**: See how many times each question was asked
 - ✅ **Convert to FAQ**: Quickly turn unanswered questions into FAQs
 - ✅ **Dismiss**: Remove irrelevant questions
 - ✅ **Auto-refresh**: Updates every 30 seconds
 
-### 3. Voice Configuration
+### 3. Voice Configuration (Admin Only)
 - ✅ **Voice Personalities**: View all available voice options
 - ✅ **Active Voice Display**: See which voice is currently active
 - ✅ **One-click Activation**: Change voice personality instantly
 - ✅ **Voice Details**: Gender, accent, provider voice ID
+- ✅ **Voice Preview**: Preview each voice before activating
 
-### 4. Playground
-- ✅ **Semantic Search Testing**: Test how the agent searches FAQs
-- ✅ **Similarity Scores**: See match percentages for results
-- ✅ **Response Preview**: See how the agent would respond
-- ✅ **Active Voice Info**: Know which voice would speak the answer
+### 4. Playground (Public)
+- ✅ **Live Voice Interaction**: Real-time voice conversation with agent
+- ✅ **Voice Selection**: Choose your preferred voice (4 options)
+- ✅ **Voice Preview**: Test each voice before selecting
+- ✅ **No Authentication Required**: Public access for guest testing
 
 ## Technology Stack
 
@@ -206,22 +214,34 @@ admin-panel/
 
 ## API Integration
 
-The admin panel connects to the .NET backend API:
+The admin panel connects to the .NET backend API with JWT authentication:
 
-**Endpoints Used:**
-- `GET /api/faq` - List all FAQs
-- `POST /api/faq` - Create FAQ
-- `PUT /api/faq/{id}` - Update FAQ
-- `DELETE /api/faq/{id}` - Delete FAQ
-- `POST /api/faq/search` - Semantic search
+**Authentication Endpoints:**
+- `POST /api/auth/login` - Login with credentials 🔓 **Public**
+- `GET /api/auth/me` - Get current user info 🔒 **Protected**
 
-- `GET /api/unansweredquestions` - List pending questions
-- `POST /api/unansweredquestions/{id}/convert` - Convert to FAQ
-- `DELETE /api/unansweredquestions/{id}` - Dismiss question
+**FAQ Endpoints:**
+- `GET /api/faq` - List all FAQs 🔓 **Public**
+- `GET /api/faq/search` - Semantic search 🔓 **Public**
+- `POST /api/faq` - Create FAQ 🔒 **Admin Only**
+- `PUT /api/faq/{id}` - Update FAQ 🔒 **Admin Only**
+- `DELETE /api/faq/{id}` - Delete FAQ 🔒 **Admin Only**
 
-- `GET /api/voiceconfigurations` - List voices
-- `GET /api/voiceconfigurations/active` - Get active voice
-- `PUT /api/voiceconfigurations/{voiceId}/activate` - Set active voice
+**Unanswered Questions Endpoints:**
+- `GET /api/unansweredquestions/pending` - List pending 🔒 **Admin Only**
+- `POST /api/unansweredquestions` - Record question 🔓 **Public**
+- `POST /api/unansweredquestions/{id}/convert` - Convert to FAQ 🔒 **Admin Only**
+- `DELETE /api/unansweredquestions/{id}` - Dismiss 🔒 **Admin Only**
+
+**Voice Configuration Endpoints:**
+- `GET /api/voiceconfigurations` - List all voices 🔓 **Public**
+- `GET /api/voiceconfigurations/active` - Get active voice 🔓 **Public**
+- `GET /api/voiceconfigurations/{id}` - Get voice by ID 🔓 **Public**
+- `GET /api/voiceconfigurations/{id}/preview` - Generate preview 🔓 **Public**
+- `POST /api/voiceconfigurations/{voiceId}/set-active` - Set active 🔒 **Admin Only**
+
+**LiveKit Endpoints:**
+- `POST /api/livekit/token` - Generate access token 🔓 **Public**
 
 ## Environment Variables
 
@@ -309,17 +329,24 @@ environment:
 3. Ensure dist/ folder was created during build
 4. Check port conflicts
 
+## Current Features ✅
+
+- [x] Real-time LiveKit playground with voice testing
+- [x] User authentication and role-based access (JWT)
+- [x] Voice selection with preview
+- [x] Protected admin routes
+
 ## Future Enhancements
 
-- [ ] Real-time LiveKit playground with actual voice testing
 - [ ] Analytics dashboard (most asked questions, response times)
 - [ ] Bulk FAQ import/export (CSV)
 - [ ] FAQ versioning and history
 - [ ] Multi-language support
-- [ ] User authentication and role-based access
 - [ ] Advanced filtering and sorting
 - [ ] FAQ templates
 - [ ] Response time monitoring
+- [ ] Password reset flow
+- [ ] 2FA for admin accounts
 
 ## License
 
