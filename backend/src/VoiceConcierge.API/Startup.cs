@@ -32,10 +32,10 @@ public class Startup
         });
 
         // Add Core layer services
-        services.AddCore();
+        services.AddCoreServices();
 
         // Add Infrastructure layer services (includes database, repositories, external services)
-        services.AddInfrastructure(Configuration);
+        services.AddInfrastructureServices(Configuration);
 
         // Configure JWT Authentication
         ConfigureAuthentication(services);

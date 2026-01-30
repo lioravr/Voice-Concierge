@@ -5,7 +5,7 @@ namespace VoiceConcierge.Core;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddCore(this IServiceCollection services)
+    public static IServiceCollection AddCoreServices(this IServiceCollection services)
     {
         // Register core application services
         services.AddScoped<IFAQService, FAQService>();
