@@ -63,9 +63,21 @@ public class FAQRepository : IFAQRepository
 
     public async Task UpdateAsync(FAQ faq)
     {
-        faq.UpdatedAt = DateTime.UtcNow;
+        // Fetch the entity to ensure it's properly tracked
+        var existingFaq = await _context.FAQs.FindAsync(faq.Id);
+        if (existingFaq == null)
+        {
+            throw new KeyNotFoundException($"FAQ with ID {faq.Id} not found");
+        }
 
-        _context.FAQs.Update(faq);
+        // Update properties on the tracked entity
+        existingFaq.Question = faq.Question;
+        existingFaq.Answer = faq.Answer;
+        existingFaq.Category = faq.Category;
+        existingFaq.Embedding = faq.Embedding;
+        existingFaq.UpdatedAt = DateTime.UtcNow;
+
+        // Save changes - no need to call Update() since entity is already tracked
         await _context.SaveChangesAsync();
     }
 
