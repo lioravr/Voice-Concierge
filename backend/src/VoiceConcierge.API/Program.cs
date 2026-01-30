@@ -1,129 +1,18 @@
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using VoiceConcierge.Core.Domain.Interfaces;
-using VoiceConcierge.Core.Services;
+using VoiceConcierge.API;
 using VoiceConcierge.Infrastructure.Data;
-using VoiceConcierge.Infrastructure.Data.Repositories;
 using VoiceConcierge.Infrastructure.Data.Seed;
-using VoiceConcierge.Infrastructure.Repositories;
-using VoiceConcierge.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new() { Title = "Voice Concierge API", Version = "v1" });
-});
-
-// Configure PostgreSQL with pgvector
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-{
-    options.UseNpgsql(connectionString, npgsqlOptions =>
-    {
-        npgsqlOptions.UseVector();
-    });
-});
-
-// Register repositories
-builder.Services.AddScoped<IFAQRepository, FAQRepository>();
-builder.Services.AddScoped<IUnansweredQuestionRepository, UnansweredQuestionRepository>();
-builder.Services.AddScoped<IVoiceConfigurationRepository, VoiceConfigurationRepository>();
-builder.Services.AddScoped<IUserRepository, UserRepository>();
-
-// Register services
-builder.Services.AddScoped<IEmbeddingService, OpenAIEmbeddingService>();
-builder.Services.AddScoped<IFAQService, FAQService>();
-builder.Services.AddScoped<IUnansweredQuestionService, UnansweredQuestionService>();
-builder.Services.AddScoped<IVoiceConfigurationService, VoiceConfigurationService>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-
-// Register database seeder
-builder.Services.AddScoped<DatabaseSeeder>();
-
-// Add HttpClient for external API calls
-builder.Services.AddHttpClient();
-
-// Add health checks
-builder.Services.AddHealthChecks();
-
-// Configure JWT Authentication
-var jwtKey = builder.Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "VoiceConcierge";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "VoiceConciergeClient";
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
-    {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtIssuer,
-        ValidAudience = jwtAudience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-    };
-});
-
-builder.Services.AddAuthorization();
-
-// Configure CORS
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(policy =>
-    {
-        policy.WithOrigins(
-                "http://localhost:3000",  // Docker admin panel
-                "http://localhost:3001",  // Local dev server (alternate port)
-                "http://localhost:5173"   // Vite default port
-            )
-            .AllowAnyHeader()
-            .AllowAnyMethod()
-            .AllowCredentials();
-    });
-});
+// Configure services using Startup
+var startup = new Startup(builder.Configuration);
+startup.ConfigureServices(builder.Services);
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
-app.UseCors();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapHealthChecks("/health");
-
-// Database connection test endpoint
-app.MapGet("/api/test/db-connection", async (ApplicationDbContext db) =>
-{
-    try
-    {
-        await db.Database.CanConnectAsync();
-        return Results.Ok(new { message = "Database connection successful", timestamp = DateTime.UtcNow });
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem($"Database connection failed: {ex.Message}");
-    }
-});
+// Configure the HTTP request pipeline using Startup
+startup.Configure(app, app.Environment);
 
 // Auto-apply migrations and seed data in development
 if (app.Environment.IsDevelopment())
@@ -150,7 +39,5 @@ if (app.Environment.IsDevelopment())
         throw;
     }
 }
-
-app.MapControllers();
 
 app.Run();
