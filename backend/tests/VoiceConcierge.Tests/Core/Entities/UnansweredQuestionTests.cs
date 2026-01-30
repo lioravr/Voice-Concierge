@@ -1,5 +1,5 @@
 using FluentAssertions;
-using VoiceConcierge.Core.Entities;
+using VoiceConcierge.Core.Domain.Entities;
 using Xunit;
 
 namespace VoiceConcierge.Tests.Core.Entities;

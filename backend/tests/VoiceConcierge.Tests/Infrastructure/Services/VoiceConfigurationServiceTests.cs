@@ -1,8 +1,8 @@
 using FluentAssertions;
 using Moq;
-using VoiceConcierge.Core.Entities;
-using VoiceConcierge.Core.Interfaces;
-using VoiceConcierge.Infrastructure.Services;
+using VoiceConcierge.Core.Domain.Entities;
+using VoiceConcierge.Core.Domain.Interfaces;
+using VoiceConcierge.Core.Services;
 using Xunit;
 
 namespace VoiceConcierge.Tests.Infrastructure.Services;
