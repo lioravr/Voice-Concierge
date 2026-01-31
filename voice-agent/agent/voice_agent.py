@@ -1,7 +1,9 @@
 """
-LiveKit Voice Agent Implementation - Using LiveKit Agents v1.3.x API
+LiveKit Voice Agent Implementation with PostgreSQL FAQ Database Integration
+Uses custom FAQLLM that queries backend database for every question
 """
 import structlog
+import json
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -13,6 +15,8 @@ from livekit.plugins import openai, silero
 
 from .config import AgentConfig
 from .backend_client import BackendClient
+from .conversation import ConversationManager
+from .faq_llm import FAQLLM
 
 logger = structlog.get_logger()
 
@@ -36,7 +40,11 @@ async def agent_entrypoint(ctx: RunContext):
         timeout=config.backend_timeout
     )
     
-    # Get voice configuration
+    # Initialize conversation manager (handles PostgreSQL FAQ search)
+    conversation = ConversationManager(config=config, backend=backend)
+    logger.info("conversation_manager_initialized")
+    
+    # Get voice configuration from backend database
     tts_voice = config.default_voice
     voice_preference_id = None
     
@@ -45,7 +53,6 @@ async def agent_entrypoint(ctx: RunContext):
         for participant in ctx.room.remote_participants.values():
             if hasattr(participant, 'metadata') and participant.metadata:
                 try:
-                    import json
                     metadata = json.loads(participant.metadata)
                     voice_preference_id = metadata.get("voice_preference")
                     if voice_preference_id:
@@ -56,10 +63,9 @@ async def agent_entrypoint(ctx: RunContext):
                 except Exception as e:
                     logger.warning("failed_to_parse_metadata", error=str(e))
     
-    # Get voice from backend based on preference or use active voice
+    # Get voice from backend
     try:
         if voice_preference_id:
-            # Get specific voice by ID
             voice_config = await backend.get_voice_by_id(voice_preference_id)
             if voice_config and voice_config.get("providerVoiceId"):
                 logger.info("using_preferred_voice", 
@@ -67,13 +73,10 @@ async def agent_entrypoint(ctx: RunContext):
                            provider_voice_id=voice_config.get("providerVoiceId"))
                 tts_voice = voice_config.get("providerVoiceId")
             else:
-                logger.warning("preferred_voice_not_found", voice_id=voice_preference_id)
-                # Fall back to active voice
                 active_voice = await backend.get_active_voice()
                 if active_voice and active_voice.get("providerVoiceId"):
                     tts_voice = active_voice.get("providerVoiceId")
         else:
-            # No preference, use active voice
             active_voice = await backend.get_active_voice()
             if active_voice and active_voice.get("providerVoiceId"):
                 logger.info("using_active_voice", 
@@ -90,49 +93,36 @@ async def agent_entrypoint(ctx: RunContext):
     
     logger.info("creating_session")
     
-    # Create the agent session with OpenAI LLM
+    # Create custom FAQ-aware LLM
+    faq_llm = FAQLLM(conversation_manager=conversation)
+    
+    # Create the agent session with our custom FAQ LLM
     session = AgentSession(
         stt=openai.STT(),
-        llm=openai.LLM(),  # Uses default GPT-4 model
+        llm=faq_llm,  # Our custom LLM that queries PostgreSQL
         tts=openai.TTS(voice=tts_voice, speed=config.speech_speed),
         vad=vad,
     )
     
-    logger.info("session_created_starting")
+    logger.info("session_created_with_faq_llm")
     
-    # Create agent with detailed instructions
+    # Create agent with minimal instructions (FAQ LLM handles everything)
     agent = Agent(
-        instructions="""You are the helpful voice concierge for The Meridian Casino & Resort, a luxury destination in Las Vegas.
-
-**Your Role:**
-- Answer guest questions about the resort, amenities, services, and policies
-- Be warm, friendly, professional, and concise
-- Provide specific information when possible (times, locations, features)
-
-**Key Information:**
-- Check-in: 3:00 PM, Check-out: 11:00 AM
-- Resort fee: $45/night (includes WiFi, pool access, fitness center)
-- Parking: Valet $35/day, Self-parking $20/day
-- Pet policy: Up to 2 pets (40 lbs each), $75/pet/night
-- Pool hours: 8 AM - 10 PM daily
-- Fitness center: 24 hours, complimentary
-- Spa: 9 AM - 9 PM, appointments recommended
-- Casino: 24 hours, 18+ only
-- Restaurants: Multiple options, some require reservations
-- Room service: 24 hours available
-- WiFi: Complimentary for guests
-
-If you're not sure about something specific, offer to connect them with the front desk."""
+        instructions="""You are the voice concierge for The Meridian Casino & Resort.
+Your responses come from our FAQ database. Be warm, friendly, and professional."""
     )
     
     # Start the session with room and agent
     await session.start(room=ctx.room, agent=agent)
     
-    logger.info("session_started")
+    logger.info("session_started_postgresql_faq_integration_active")
     
-    # Send welcome greeting
+    # Send personalized greeting from database
     try:
-        await session.say("Welcome to The Meridian Casino and Resort! I'm your voice concierge. How may I assist you today?")
-        logger.info("greeting_sent")
+        greeting = await conversation.get_greeting()
+        await session.say(greeting)
+        logger.info("greeting_sent", greeting=greeting[:50])
     except Exception as e:
         logger.warning("failed_to_send_greeting", error=str(e))
+        # Fallback greeting
+        await session.say("Welcome to The Meridian Casino and Resort! How may I assist you today?")
