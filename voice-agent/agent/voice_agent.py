@@ -4,7 +4,6 @@ Integrated with backend FAQ search and unanswered question tracking
 """
 import structlog
 import json
-from typing import Annotated
 from livekit.agents import (
     Agent,
     AgentSession,
@@ -27,10 +26,7 @@ server = AgentServer()
 _backend_client = None
 
 
-@llm.ai_callable()
-async def search_faq_database(
-    query: Annotated[str, llm.TypeInfo(description="The guest's question to search for in the FAQ database")]
-) -> str:
+async def search_faq_database(query: str) -> str:
     """
     Search the FAQ database for answers to guest questions.
     Use this function whenever a guest asks a question about the resort.
