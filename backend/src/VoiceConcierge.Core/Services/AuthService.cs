@@ -44,7 +44,7 @@ public class AuthService : IAuthService
         await _userRepository.UpdateAsync(user);
 
         var token = GenerateJwtToken(user);
-        var expiresAt = DateTime.UtcNow.AddHours(8);
+        var expiresAt = DateTime.UtcNow.AddHours(1);
 
         return new LoginResponseDto
         {
@@ -100,7 +100,7 @@ public class AuthService : IAuthService
             issuer: _jwtIssuer,
             audience: _jwtAudience,
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(8),
+            expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: _signingCredentials
         );
 
