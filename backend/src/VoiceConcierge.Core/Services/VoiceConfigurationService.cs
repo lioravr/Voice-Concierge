@@ -1,3 +1,4 @@
+using VoiceConcierge.Core.Constants;
 using VoiceConcierge.Core.Domain.Entities;
 using VoiceConcierge.Core.Domain.Interfaces;
 using VoiceConcierge.Core.DTOs;
@@ -58,7 +59,7 @@ public class VoiceConfigurationService : IVoiceConfigurationService
         var previewText = GetPreviewTextForVoice(voice.Name);
 
         // Call OpenAI TTS API
-        var openAiApiKey = _configuration["OpenAI:ApiKey"] 
+        var openAiApiKey = _configuration[ConfigurationKeys.OpenAI.ApiKey] 
             ?? throw new InvalidOperationException("OpenAI API key not configured");
 
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/speech")

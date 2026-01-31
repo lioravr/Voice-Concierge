@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using VoiceConcierge.Core.Constants;
 using VoiceConcierge.Core.Domain.Interfaces;
 using VoiceConcierge.Core.Services;
 using VoiceConcierge.Infrastructure.Data;
@@ -16,7 +17,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
         // Configure PostgreSQL with pgvector
-        var connectionString = configuration.GetConnectionString("DefaultConnection");
+        var connectionString = configuration.GetConnectionString(ConfigurationKeys.ConnectionStrings.DefaultConnection);
         services.AddDbContext<ApplicationDbContext>(options =>
         {
             options.UseNpgsql(connectionString, npgsqlOptions =>

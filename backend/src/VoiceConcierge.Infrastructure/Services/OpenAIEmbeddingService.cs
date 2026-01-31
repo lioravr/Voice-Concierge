@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using OpenAI.Embeddings;
+using VoiceConcierge.Core.Constants;
 using VoiceConcierge.Core.Services;
 
 namespace VoiceConcierge.Infrastructure.Services;
@@ -11,7 +12,7 @@ public class OpenAIEmbeddingService : IEmbeddingService
     
     public OpenAIEmbeddingService(IConfiguration configuration)
     {
-        var apiKey = configuration["OpenAI:ApiKey"] 
+        var apiKey = configuration[ConfigurationKeys.OpenAI.ApiKey] 
             ?? throw new InvalidOperationException("OpenAI API key not configured");
             
         _client = new EmbeddingClient(Model, apiKey);

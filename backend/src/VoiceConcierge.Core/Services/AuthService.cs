@@ -4,6 +4,7 @@ using System.Security.Cryptography;
 using System.Text;
 using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
+using VoiceConcierge.Core.Constants;
 using VoiceConcierge.Core.Domain.Entities;
 using VoiceConcierge.Core.Domain.Interfaces;
 using VoiceConcierge.Core.DTOs;
@@ -22,9 +23,9 @@ public class AuthService : IAuthService
         _userRepository = userRepository;
         
         // Read JWT configuration once in constructor for better performance
-        var jwtKey = configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
-        _jwtIssuer = configuration["Jwt:Issuer"] ?? "VoiceConcierge";
-        _jwtAudience = configuration["Jwt:Audience"] ?? "VoiceConciergeClient";
+        var jwtKey = configuration[ConfigurationKeys.Jwt.Key] ?? throw new InvalidOperationException("JWT Key not configured");
+        _jwtIssuer = configuration[ConfigurationKeys.Jwt.Issuer] ?? "VoiceConcierge";
+        _jwtAudience = configuration[ConfigurationKeys.Jwt.Audience] ?? "VoiceConciergeClient";
         
         // Pre-compute security key and signing credentials (reused for all tokens)
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));

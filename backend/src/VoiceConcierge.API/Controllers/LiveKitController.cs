@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using VoiceConcierge.Core.Constants;
 using VoiceConcierge.Core.DTOs;
 using VoiceConcierge.Core.Helpers;
 
@@ -23,14 +24,14 @@ public class LiveKitController : ControllerBase
         _logger = logger;
         
         // Read LiveKit configuration once in constructor for better performance
-        var apiSecret = configuration["LiveKit:ApiSecret"] 
+        var apiSecret = configuration[ConfigurationKeys.LiveKit.ApiSecret] 
             ?? throw new InvalidOperationException("LiveKit:ApiSecret not configured");
-        _liveKitApiKey = configuration["LiveKit:ApiKey"] 
+        _liveKitApiKey = configuration[ConfigurationKeys.LiveKit.ApiKey] 
             ?? throw new InvalidOperationException("LiveKit:ApiKey not configured");
-        _liveKitUrl = configuration["LiveKit:Url"] 
+        _liveKitUrl = configuration[ConfigurationKeys.LiveKit.Url] 
             ?? throw new InvalidOperationException("LiveKit:Url not configured");
-        _defaultRoomName = configuration["LiveKit:DefaultRoomName"] ?? "voice-concierge";
-        _tokenExpirationHours = int.Parse(configuration["LiveKit:TokenExpirationHours"] ?? "6");
+        _defaultRoomName = configuration[ConfigurationKeys.LiveKit.DefaultRoomName] ?? "voice-concierge";
+        _tokenExpirationHours = int.Parse(configuration[ConfigurationKeys.LiveKit.TokenExpirationHours] ?? "6");
         
         // Pre-compute signing credentials (reused for all tokens)
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(apiSecret));

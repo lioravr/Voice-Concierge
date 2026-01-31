@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using VoiceConcierge.Core;
+using VoiceConcierge.Core.Constants;
 using VoiceConcierge.Infrastructure;
 using VoiceConcierge.Infrastructure.Data;
 using VoiceConcierge.Infrastructure.Data.Seed;
@@ -89,9 +90,9 @@ public class Startup
 
     private void ConfigureAuthentication(IServiceCollection services)
     {
-        var jwtKey = Configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
-        var jwtIssuer = Configuration["Jwt:Issuer"] ?? "VoiceConcierge";
-        var jwtAudience = Configuration["Jwt:Audience"] ?? "VoiceConciergeClient";
+        var jwtKey = Configuration[ConfigurationKeys.Jwt.Key] ?? throw new InvalidOperationException("JWT Key not configured");
+        var jwtIssuer = Configuration[ConfigurationKeys.Jwt.Issuer] ?? "VoiceConcierge";
+        var jwtAudience = Configuration[ConfigurationKeys.Jwt.Audience] ?? "VoiceConciergeClient";
 
         services.AddAuthentication(options =>
         {
