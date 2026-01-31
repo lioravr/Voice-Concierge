@@ -30,7 +30,7 @@ class FAQLLM(llm.LLM):
     async def chat(
         self,
         chat_ctx: llm.ChatContext,
-        conn_options: Optional[llm.LLMOptions] = None,
+        conn_options: Optional[dict] = None,
         **kwargs
     ) -> llm.LLMStream:
         """
@@ -81,7 +81,7 @@ class _FAQResponseStream(llm.LLMStream):
     """Stream that yields a single FAQ response"""
     
     def __init__(self, llm_instance: llm.LLM, chat_ctx: llm.ChatContext, response_text: str):
-        super().__init__(llm_instance, chat_ctx, llm.LLMOptions())
+        super().__init__(llm_instance, chat_ctx, None)
         self._response_text = response_text
         self._yielded = False
     
@@ -115,7 +115,7 @@ class _EmptyStream(llm.LLMStream):
     """Empty stream for when there's no user message"""
     
     def __init__(self, llm_instance: llm.LLM, chat_ctx: llm.ChatContext):
-        super().__init__(llm_instance, chat_ctx, llm.LLMOptions())
+        super().__init__(llm_instance, chat_ctx, None)
     
     async def __anext__(self) -> llm.ChatChunk:
         """Immediately stop iteration"""
