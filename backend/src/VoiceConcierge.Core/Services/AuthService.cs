@@ -23,7 +23,7 @@ public class AuthService : IAuthService
         _userRepository = userRepository;
         
         // Read JWT configuration once in constructor for better performance
-        var jwtKey = configuration[ConfigurationKeys.Jwt.Key] ?? throw new InvalidOperationException("JWT Key not configured");
+        var jwtKey = configuration[ConfigurationKeys.Jwt.Key] ?? throw new InvalidOperationException($"{nameof(ConfigurationKeys.Jwt.Key)} not configured");
         _jwtIssuer = configuration[ConfigurationKeys.Jwt.Issuer] ?? "VoiceConcierge";
         _jwtAudience = configuration[ConfigurationKeys.Jwt.Audience] ?? "VoiceConciergeClient";
         

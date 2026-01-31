@@ -13,7 +13,7 @@ public class OpenAIEmbeddingService : IEmbeddingService
     public OpenAIEmbeddingService(IConfiguration configuration)
     {
         var apiKey = configuration[ConfigurationKeys.OpenAI.ApiKey] 
-            ?? throw new InvalidOperationException("OpenAI API key not configured");
+            ?? throw new InvalidOperationException($"{nameof(ConfigurationKeys.OpenAI.ApiKey)} not configured");
             
         _client = new EmbeddingClient(Model, apiKey);
     }

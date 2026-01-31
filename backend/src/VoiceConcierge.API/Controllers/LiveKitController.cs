@@ -25,11 +25,11 @@ public class LiveKitController : ControllerBase
         
         // Read LiveKit configuration once in constructor for better performance
         var apiSecret = configuration[ConfigurationKeys.LiveKit.ApiSecret] 
-            ?? throw new InvalidOperationException("LiveKit:ApiSecret not configured");
+            ?? throw new InvalidOperationException($"{nameof(ConfigurationKeys.LiveKit.ApiSecret)} not configured");
         _liveKitApiKey = configuration[ConfigurationKeys.LiveKit.ApiKey] 
-            ?? throw new InvalidOperationException("LiveKit:ApiKey not configured");
+            ?? throw new InvalidOperationException($"{nameof(ConfigurationKeys.LiveKit.ApiKey)} not configured");
         _liveKitUrl = configuration[ConfigurationKeys.LiveKit.Url] 
-            ?? throw new InvalidOperationException("LiveKit:Url not configured");
+            ?? throw new InvalidOperationException($"{nameof(ConfigurationKeys.LiveKit.Url)} not configured");
         _defaultRoomName = configuration[ConfigurationKeys.LiveKit.DefaultRoomName] ?? "voice-concierge";
         _tokenExpirationHours = int.Parse(configuration[ConfigurationKeys.LiveKit.TokenExpirationHours] ?? "6");
         

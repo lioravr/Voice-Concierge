@@ -90,7 +90,7 @@ public class Startup
 
     private void ConfigureAuthentication(IServiceCollection services)
     {
-        var jwtKey = Configuration[ConfigurationKeys.Jwt.Key] ?? throw new InvalidOperationException("JWT Key not configured");
+        var jwtKey = Configuration[ConfigurationKeys.Jwt.Key] ?? throw new InvalidOperationException($"{nameof(ConfigurationKeys.Jwt.Key)} not configured");
         var jwtIssuer = Configuration[ConfigurationKeys.Jwt.Issuer] ?? "VoiceConcierge";
         var jwtAudience = Configuration[ConfigurationKeys.Jwt.Audience] ?? "VoiceConciergeClient";
 

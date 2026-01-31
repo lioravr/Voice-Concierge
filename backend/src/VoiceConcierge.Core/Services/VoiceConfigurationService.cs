@@ -60,7 +60,7 @@ public class VoiceConfigurationService : IVoiceConfigurationService
 
         // Call OpenAI TTS API
         var openAiApiKey = _configuration[ConfigurationKeys.OpenAI.ApiKey] 
-            ?? throw new InvalidOperationException("OpenAI API key not configured");
+            ?? throw new InvalidOperationException($"{nameof(ConfigurationKeys.OpenAI.ApiKey)} not configured");
 
         var request = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/audio/speech")
         {
