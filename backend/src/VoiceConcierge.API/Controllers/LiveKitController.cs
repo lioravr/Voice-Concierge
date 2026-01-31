@@ -66,46 +66,44 @@ public class LiveKitController : ControllerBase
     {
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(apiSecret));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
-        var videoGrants = new
+        
+        var now = DateTime.UtcNow;
+        
+        // Use JwtHeader and JwtPayload for proper nested claims
+        var headers = new JwtHeader(credentials);
+        var payload = new JwtPayload();
+        
+        // Add standard JWT claims
+        payload.Add("exp", new DateTimeOffset(now.AddHours(6)).ToUnixTimeSeconds());
+        payload.Add("iss", apiKey);
+        payload.Add("nbf", new DateTimeOffset(now).ToUnixTimeSeconds());
+        payload.Add("sub", identity);
+        payload.Add("name", identity);
+        
+        // Add video grants as Dictionary (not serialized string!)
+        var videoGrants = new Dictionary<string, object>
         {
-            room = roomName,
-            roomJoin = true,
-            canPublish = true,
-            canSubscribe = true,
-            canPublishData = true
+            { "canPublish", true },
+            { "canPublishData", true },
+            { "canSubscribe", true },
+            { "room", roomName },
+            { "roomJoin", true }
         };
-
-        var metadata = new Dictionary<string, object>();
+        payload.Add("video", videoGrants);
+        
+        // Add metadata if voice preference is set
         if (voicePreference.HasValue)
         {
-            metadata["voice_preference"] = voicePreference.Value;
+            var metadata = new Dictionary<string, object>
+            {
+                { "voice_preference", voicePreference.Value }
+            };
+            payload.Add("metadata", JsonSerializer.Serialize(metadata));
         }
-
-        var claims = new List<Claim>
-        {
-            new Claim("sub", identity),
-            new Claim("name", identity),
-            new Claim("video", JsonSerializer.Serialize(videoGrants), JsonClaimValueTypes.Json)
-        };
-
-        // Add metadata claim if we have voice preference
-        if (metadata.Count > 0)
-        {
-            claims.Add(new Claim("metadata", JsonSerializer.Serialize(metadata), JsonClaimValueTypes.Json));
-        }
-
-        var tokenDescriptor = new JwtSecurityToken(
-            issuer: apiKey,
-            audience: apiKey,
-            claims: claims,
-            notBefore: DateTime.UtcNow,
-            expires: DateTime.UtcNow.AddHours(6),
-            signingCredentials: credentials
-        );
-
+        
+        var token = new JwtSecurityToken(headers, payload);
         var handler = new JwtSecurityTokenHandler();
-        return handler.WriteToken(tokenDescriptor);
+        return handler.WriteToken(token);
     }
 }
 
