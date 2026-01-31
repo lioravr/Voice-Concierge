@@ -1,11 +1,17 @@
 """
-Custom LLM implementation that queries PostgreSQL FAQ database
-Integrates with LiveKit Agents SDK v1.3.x
+Custom LLM that answers from the PostgreSQL FAQ database (via backend API).
+
+This integrates with LiveKit Agents SDK v1.3.x by implementing `llm.LLM.chat()`
+and returning a proper `llm.LLMStream` (which must implement `_run()`).
 """
+
+from __future__ import annotations
+
+from typing import Any
+
 import structlog
-import asyncio
-from typing import Optional
 from livekit.agents import llm
+from livekit.agents.types import DEFAULT_API_CONNECT_OPTIONS, NOT_GIVEN, APIConnectOptions, NotGivenOr
 
 from .conversation import ConversationManager
 
@@ -14,131 +20,96 @@ logger = structlog.get_logger()
 
 class FAQLLM(llm.LLM):
     """
-    Custom LLM that searches PostgreSQL FAQ database before generating responses.
-    
-    This replaces the standard OpenAI LLM with one that:
-    1. Searches the FAQ database using semantic search
-    2. Records unanswered questions when similarity < 0.7
-    3. Generates natural responses using the FAQ context
+    LLM adapter that delegates answering to `ConversationManager.process_question()`.
     """
-    
+
     def __init__(self, conversation_manager: ConversationManager):
         super().__init__()
-        self.conversation = conversation_manager
+        self._conversation = conversation_manager
         logger.info("faq_llm_initialized_with_postgresql_backend")
-    
-    async def chat(
+
+    def chat(
         self,
+        *,
         chat_ctx: llm.ChatContext,
-        conn_options: Optional[dict] = None,
-        **kwargs
+        tools: list[llm.Tool] | None = None,
+        conn_options: APIConnectOptions = DEFAULT_API_CONNECT_OPTIONS,
+        parallel_tool_calls: NotGivenOr[bool] = NOT_GIVEN,
+        tool_choice: NotGivenOr[llm.ToolChoice] = NOT_GIVEN,
+        extra_kwargs: NotGivenOr[dict[str, Any]] = NOT_GIVEN,
     ) -> llm.LLMStream:
-        """
-        Process chat request by querying FAQ database.
-        
-        Args:
-            chat_ctx: Chat context with conversation history
-            conn_options: Optional connection options
-            **kwargs: Additional parameters (ignored)
-        
-        Returns:
-            LLMStream with FAQ-based response
-        """
-        # Extract the last user message
-        user_messages = [msg for msg in chat_ctx.messages if msg.role == "user"]
-        
-        if not user_messages:
-            logger.warning("no_user_message_in_context")
-            # Return empty response
-            return _EmptyStream(self, chat_ctx)
-        
-        last_question = user_messages[-1].content
-        logger.info("processing_question_with_faq_database", question=last_question[:50])
-        
-        try:
-            # Use ConversationManager to:
-            # 1. Search PostgreSQL FAQ database with semantic search
-            # 2. Record unanswered questions if similarity < 0.7
-            # 3. Generate natural response using GPT-4
-            response_text = await self.conversation.process_question(last_question)
-            
-            logger.info("faq_response_generated", 
-                       question_length=len(last_question),
-                       response_length=len(response_text))
-            
-            # Return stream with FAQ response
-            return _FAQResponseStream(self, chat_ctx, response_text)
-        
-        except Exception as e:
-            logger.error("faq_processing_error", error=str(e), question=last_question[:50])
-            
-            # Return fallback response
-            fallback = "I apologize, but I'm having trouble accessing information right now. Please contact the front desk for assistance."
-            return _FAQResponseStream(self, chat_ctx, fallback)
+        # We currently ignore tool calling options, but we accept them to keep
+        # compatibility with the LiveKit Agents SDK `LLM.chat()` signature.
+        _ = parallel_tool_calls, tool_choice, extra_kwargs
+
+        return _FAQResponseStream(
+            self,
+            chat_ctx=chat_ctx,
+            tools=tools or [],
+            conn_options=conn_options,
+            conversation=self._conversation,
+        )
 
 
 class _FAQResponseStream(llm.LLMStream):
-    """Stream that yields a single FAQ response"""
-    
-    def __init__(self, llm_instance: llm.LLM, chat_ctx: llm.ChatContext, response_text: str):
-        super().__init__(llm_instance, chat_ctx, None)
-        self._response_text = response_text
-        self._yielded = False
-    
-    async def __aenter__(self):
-        """Support async context manager protocol"""
-        return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Support async context manager protocol"""
-        await self.aclose()
-        return False
-    
-    async def __anext__(self) -> llm.ChatChunk:
-        """Yield the FAQ response as a single chunk"""
-        if self._yielded:
-            raise StopAsyncIteration
-        
-        self._yielded = True
-        
-        # Return a complete response chunk
-        return llm.ChatChunk(
-            request_id="faq_response",
-            choices=[
-                llm.Choice(
-                    delta=llm.ChoiceDelta(
-                        role="assistant",
-                        content=self._response_text
-                    ),
-                    index=0
-                )
-            ]
+    """
+    A one-shot stream that emits exactly one assistant message.
+
+    LiveKit Agents expects `LLM.chat()` to return an `LLMStream` instance that
+    implements `_run()` and emits `ChatChunk`s via `self._event_ch`.
+    """
+
+    def __init__(
+        self,
+        llm_instance: llm.LLM,
+        *,
+        chat_ctx: llm.ChatContext,
+        tools: list[llm.Tool],
+        conn_options: APIConnectOptions,
+        conversation: ConversationManager,
+    ) -> None:
+        # Extract the last user message BEFORE starting the stream task (super().__init__)
+        # In livekit-agents v1.3.x, ChatContext uses 'items' (not 'messages')
+        # and content may be a list, so we use text_content property
+        user_messages = [msg for msg in chat_ctx.items if msg.role == "user"]
+        self._question = ""
+        if user_messages:
+            last_msg = user_messages[-1]
+            # text_content joins all text parts; fallback to content if needed
+            if hasattr(last_msg, "text_content"):
+                self._question = last_msg.text_content or ""
+            elif isinstance(last_msg.content, list):
+                self._question = " ".join(str(c) for c in last_msg.content)
+            else:
+                self._question = str(last_msg.content) if last_msg.content else ""
+        self._conversation = conversation
+
+        super().__init__(
+            llm_instance,
+            chat_ctx=chat_ctx,
+            tools=tools,
+            conn_options=conn_options,
         )
-    
-    async def aclose(self):
-        """Close the stream"""
-        pass
 
+    async def _run(self) -> None:
+        if not self._question:
+            logger.warning("no_user_message_in_context")
+            return
 
-class _EmptyStream(llm.LLMStream):
-    """Empty stream for when there's no user message"""
-    
-    def __init__(self, llm_instance: llm.LLM, chat_ctx: llm.ChatContext):
-        super().__init__(llm_instance, chat_ctx, None)
-    
-    async def __aenter__(self):
-        """Support async context manager protocol"""
-        return self
-    
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """Support async context manager protocol"""
-        await self.aclose()
-        return False
-    
-    async def __anext__(self) -> llm.ChatChunk:
-        """Immediately stop iteration"""
-        raise StopAsyncIteration
-    
-    async def aclose(self):
-        """Close the stream"""
-        pass
+        logger.info("processing_question_with_faq_database", question=self._question[:80])
+
+        try:
+            response_text = await self._conversation.process_question(self._question)
+        except Exception as e:
+            logger.error("faq_processing_error", error=str(e), question=self._question[:80])
+            response_text = (
+                "I apologize, but I'm having trouble accessing information right now. "
+                "Please contact the front desk for assistance."
+            )
+
+        self._event_ch.send_nowait(
+            llm.ChatChunk(
+                id="faq_response",
+                delta=llm.ChoiceDelta(role="assistant", content=response_text),
+            )
+        )
