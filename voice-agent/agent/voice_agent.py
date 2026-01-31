@@ -22,7 +22,7 @@ logger = structlog.get_logger()
 
 # Create the server instance
 server = AgentServer()
-
+    
 # Global backend client instance (will be set in agent_entrypoint)
 _backend_client = None
 
@@ -185,6 +185,13 @@ async def agent_entrypoint(ctx: RunContext):
     
     logger.info("session_created_starting")
     
+    # Create function context for FAQ search
+    fnc_ctx = llm.FunctionContext()
+    fnc_ctx.ai_callable(
+        name="search_faq_database",
+        description="Search the FAQ database for answers to guest questions about The Meridian Resort"
+    )(search_faq_database)
+    
     # Create agent with FAQ search capability
     agent = Agent(
         instructions="""You are the helpful voice concierge for The Meridian Casino & Resort, a luxury destination in Las Vegas.
@@ -222,11 +229,8 @@ async def agent_entrypoint(ctx: RunContext):
 - Keep responses concise for voice interaction
 - Be honest if information isn't available
 - Speak naturally, not like reading a script""",
-        fnc_ctx=llm.FunctionContext()
+        fnc_ctx=fnc_ctx
     )
-    
-    # Register the FAQ search function
-    agent.fnc_ctx.ai_callable(search_faq_database)
     
     # Start the session with room and agent
     await session.start(room=ctx.room, agent=agent)
