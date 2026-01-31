@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Pgvector;
+using VoiceConcierge.Core.Constants;
 using VoiceConcierge.Core.Domain.Entities;
 using VoiceConcierge.Core.Services;
 

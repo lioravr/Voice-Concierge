@@ -1,6 +1,15 @@
 namespace VoiceConcierge.Core.Constants;
 
 /// <summary>
+/// User role constants for authorization
+/// </summary>
+public static class UserRoles
+{
+    public const string Admin = "Admin";
+    public const string Guest = "Guest";
+}
+
+/// <summary>
 /// Centralized configuration keys used throughout the application.
 /// Prevents magic strings and provides compile-time safety for configuration access.
 /// </summary>

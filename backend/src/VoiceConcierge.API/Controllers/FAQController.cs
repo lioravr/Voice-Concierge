@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using VoiceConcierge.Core.Domain.Entities;
+using VoiceConcierge.Core.Constants;
 using VoiceConcierge.Core.DTOs;
 using VoiceConcierge.Core.Services;
 
