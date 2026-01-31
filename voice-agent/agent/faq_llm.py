@@ -85,6 +85,15 @@ class _FAQResponseStream(llm.LLMStream):
         self._response_text = response_text
         self._yielded = False
     
+    async def __aenter__(self):
+        """Support async context manager protocol"""
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Support async context manager protocol"""
+        await self.aclose()
+        return False
+    
     async def __anext__(self) -> llm.ChatChunk:
         """Yield the FAQ response as a single chunk"""
         if self._yielded:
@@ -116,6 +125,15 @@ class _EmptyStream(llm.LLMStream):
     
     def __init__(self, llm_instance: llm.LLM, chat_ctx: llm.ChatContext):
         super().__init__(llm_instance, chat_ctx, None)
+    
+    async def __aenter__(self):
+        """Support async context manager protocol"""
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Support async context manager protocol"""
+        await self.aclose()
+        return False
     
     async def __anext__(self) -> llm.ChatChunk:
         """Immediately stop iteration"""
