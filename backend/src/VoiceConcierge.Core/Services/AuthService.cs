@@ -13,12 +13,22 @@ namespace VoiceConcierge.Core.Services;
 public class AuthService : IAuthService
 {
     private readonly IUserRepository _userRepository;
-    private readonly IConfiguration _configuration;
+    private readonly string _jwtIssuer;
+    private readonly string _jwtAudience;
+    private readonly SigningCredentials _signingCredentials;
 
     public AuthService(IUserRepository userRepository, IConfiguration configuration)
     {
         _userRepository = userRepository;
-        _configuration = configuration;
+        
+        // Read JWT configuration once in constructor for better performance
+        var jwtKey = configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
+        _jwtIssuer = configuration["Jwt:Issuer"] ?? "VoiceConcierge";
+        _jwtAudience = configuration["Jwt:Audience"] ?? "VoiceConciergeClient";
+        
+        // Pre-compute security key and signing credentials (reused for all tokens)
+        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+        _signingCredentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
     }
 
     public async Task<LoginResponseDto?> LoginAsync(LoginDto loginDto)
@@ -79,13 +89,6 @@ public class AuthService : IAuthService
 
     private string GenerateJwtToken(User user)
     {
-        var jwtKey = _configuration["Jwt:Key"] ?? throw new InvalidOperationException("JWT Key not configured");
-        var jwtIssuer = _configuration["Jwt:Issuer"] ?? "VoiceConcierge";
-        var jwtAudience = _configuration["Jwt:Audience"] ?? "VoiceConciergeClient";
-
-        var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-        var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
-
         var claims = new[]
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -94,11 +97,11 @@ public class AuthService : IAuthService
         };
 
         var token = new JwtSecurityToken(
-            issuer: jwtIssuer,
-            audience: jwtAudience,
+            issuer: _jwtIssuer,
+            audience: _jwtAudience,
             claims: claims,
             expires: DateTime.UtcNow.AddHours(8),
-            signingCredentials: credentials
+            signingCredentials: _signingCredentials
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
