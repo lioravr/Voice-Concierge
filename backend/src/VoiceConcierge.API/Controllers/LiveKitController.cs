@@ -1,11 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using System.Text;
-using System.Text.Json;
 using VoiceConcierge.Core.DTOs;
+using VoiceConcierge.Core.Helpers;
 
 namespace VoiceConcierge.API.Controllers;
 
@@ -51,7 +49,13 @@ public class LiveKitController : ControllerBase
             var identity = string.IsNullOrEmpty(request.Identity) ? Guid.NewGuid().ToString() : request.Identity;
             var roomName = string.IsNullOrEmpty(request.RoomName) ? _defaultRoomName : request.RoomName;
 
-            var token = GenerateLiveKitToken(identity, roomName, request.VoicePreference);
+            var token = LiveKitTokenHelper.GenerateToken(
+                _signingCredentials,
+                _liveKitApiKey,
+                identity,
+                roomName,
+                _tokenExpirationHours,
+                request.VoicePreference);
 
             _logger.LogInformation("Generated LiveKit token for identity: {Identity}, room: {Room}, voicePreference: {Voice}", 
                 identity, roomName, request.VoicePreference);
@@ -69,46 +73,5 @@ public class LiveKitController : ControllerBase
             _logger.LogError(ex, "Error generating LiveKit token");
             return StatusCode(500, new { error = "Failed to generate token" });
         }
-    }
-
-    private string GenerateLiveKitToken(string identity, string roomName, int? voicePreference)
-    {
-        var now = DateTime.UtcNow;
-        
-        // Use JwtHeader and JwtPayload for proper nested claims
-        var headers = new JwtHeader(_signingCredentials);
-        var payload = new JwtPayload();
-        
-        // Add standard JWT claims
-        payload.Add("exp", new DateTimeOffset(now.AddHours(_tokenExpirationHours)).ToUnixTimeSeconds());
-        payload.Add("iss", _liveKitApiKey);
-        payload.Add("nbf", new DateTimeOffset(now).ToUnixTimeSeconds());
-        payload.Add("sub", identity);
-        payload.Add("name", identity);
-        
-        // Add video grants as Dictionary (not serialized string!)
-        var videoGrants = new Dictionary<string, object>
-        {
-            { "canPublish", true },
-            { "canPublishData", true },
-            { "canSubscribe", true },
-            { "room", roomName },
-            { "roomJoin", true }
-        };
-        payload.Add("video", videoGrants);
-        
-        // Add metadata if voice preference is set
-        if (voicePreference.HasValue)
-        {
-            var metadata = new Dictionary<string, object>
-            {
-                { "voice_preference", voicePreference.Value }
-            };
-            payload.Add("metadata", JsonSerializer.Serialize(metadata));
-        }
-        
-        var token = new JwtSecurityToken(headers, payload);
-        var handler = new JwtSecurityTokenHandler();
-        return handler.WriteToken(token);
     }
 }
