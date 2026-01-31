@@ -5,6 +5,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using VoiceConcierge.Core.DTOs;
 
 namespace VoiceConcierge.API.Controllers;
 
@@ -110,11 +111,4 @@ public class LiveKitController : ControllerBase
         var handler = new JwtSecurityTokenHandler();
         return handler.WriteToken(token);
     }
-}
-
-public record TokenRequest
-{
-    public string? Identity { get; init; }
-    public string? RoomName { get; init; }
-    public int? VoicePreference { get; init; }
 }
